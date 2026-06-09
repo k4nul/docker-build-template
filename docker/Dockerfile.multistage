@@ -1,0 +1,12 @@
+ARG BUILDER_IMAGE=node:22-alpine
+ARG RUNTIME_IMAGE=nginx:1.27-alpine
+
+FROM ${BUILDER_IMAGE} AS build
+WORKDIR /workspace
+COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
+COPY . .
+RUN npm run build --if-present
+
+FROM ${RUNTIME_IMAGE} AS runtime
+COPY --from=build /workspace/dist /usr/share/nginx/html

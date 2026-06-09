@@ -1,0 +1,9 @@
+.git
+.gitignore
+out
+dist
+build
+node_modules
+*.log
+Dockerfile*
+docker-bake.hcl
