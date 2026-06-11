@@ -7,20 +7,7 @@ cd "$REPO_ROOT"
 
 . "$SCRIPT_DIR/build-config.sh"
 
-CONFIG_FILE="${CONFIG_FILE:-config/image.env.example}"
-if [ -f "$CONFIG_FILE" ]; then
-  load_image_config "$CONFIG_FILE"
-fi
-
-REGISTRY="${REGISTRY:-}"
-IMAGE_NAME="${IMAGE_NAME:-example-app}"
-IMAGE_TAG="${IMAGE_TAG:-0.1.0}"
-CONTEXT="${CONTEXT:-.}"
-DOCKERFILE="${DOCKERFILE:-docker/Dockerfile}"
-PLATFORMS="${PLATFORMS:-linux/amd64}"
-PUSH="${PUSH:-false}"
-
-validate_image_build_settings
+load_image_build_settings
 
 if [ "$PUSH" != "false" ]; then
   printf '%s\n' "No-push validation requires PUSH=false" >&2
@@ -62,6 +49,7 @@ do
   fi
 done
 
+export_image_build_settings
 docker buildx bake --file buildx/docker-bake.hcl --print >/dev/null
 
-printf '%s\n' "No-push build plan validation passed for ${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"
+printf '%s\n' "No-push build plan validation passed for $(image_build_ref)"

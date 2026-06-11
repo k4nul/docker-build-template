@@ -1,10 +1,14 @@
 # Docker Build Contract
 
-- Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`
+- Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_LICENSES`
 - Default output: local loaded image when `PUSH=false`
 - Registry output: pushed image when `PUSH=true`
 - Multi-platform behavior: use `PLATFORMS=linux/amd64,linux/arm64` with `PUSH=true`
 - CI integration: call `scripts/build-image.sh` from Jenkins or another runner after registry login
+- Image metadata: set the `OCI_*` inputs in `config/image.env` or the runner
+  environment to stamp Open Containers image labels without editing Dockerfiles.
+  Keep defaults public and generic until a project has a real source URL and
+  revision value from CI.
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required `.dockerignore` entries, and the Buildx bake plan without pushing.
