@@ -7,6 +7,7 @@ Dockerfile, image name, tag, platform, and push behavior configurable.
 
 ```bash
 bash -n scripts/build-image.sh scripts/push-image.sh
+./scripts/validate-build-plan.sh
 docker buildx bake --file buildx/docker-bake.hcl --print
 ```
 
@@ -18,6 +19,8 @@ keep `PUSH=false` unless the change explicitly concerns publishing.
 - Do not commit `config/image.env`, registry credentials, image archives, or build output.
 - Keep public examples safe to run without private registries.
 - Preserve `PUSH=false` as the default.
+- Keep `.dockerignore` aligned with `.gitignore` for local configs, credentials,
+  generated outputs, and build caches.
 - Update `docs/build-contract.md` when build inputs or outputs change.
 
 ## Example App Policy
