@@ -2,6 +2,13 @@ out/
 dist/
 build/
 node_modules/
+config/image.env
+.env
+.env.*
+!.env.example
+*.tar
+*.tar.gz
+*.oci
 *.log
 .DS_Store
 Thumbs.db
