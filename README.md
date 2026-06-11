@@ -21,5 +21,6 @@ docker buildx bake --file buildx/docker-bake.hcl --print
 ```
 
 Edit `config/image.env` for the target registry, image name, tag, context,
-Dockerfile, and platforms. Run `scripts/validate-build-plan.sh` before enabling a
-registry push so the template checks the no-push plan and build context hygiene.
+Dockerfile, platforms, and OCI image metadata. Run
+`scripts/validate-build-plan.sh` before enabling a registry push so the template
+checks the no-push plan and build context hygiene.
