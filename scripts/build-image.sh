@@ -2,8 +2,12 @@
 set -eu
 
 CONFIG_FILE="${CONFIG_FILE:-config/image.env.example}"
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/build-config.sh"
+
 if [ -f "$CONFIG_FILE" ]; then
-  . "$CONFIG_FILE"
+  load_image_config "$CONFIG_FILE"
 fi
 
 REGISTRY="${REGISTRY:-}"
@@ -13,6 +17,8 @@ CONTEXT="${CONTEXT:-.}"
 DOCKERFILE="${DOCKERFILE:-docker/Dockerfile}"
 PLATFORMS="${PLATFORMS:-linux/amd64}"
 PUSH="${PUSH:-false}"
+
+validate_image_build_settings
 
 IMAGE_REF="${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"
 
