@@ -10,5 +10,8 @@ config/image.env
 *.tar.gz
 *.oci
 *.log
+AGENTS.md
+.codex/
+docs/management/
 .DS_Store
 Thumbs.db
