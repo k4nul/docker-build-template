@@ -166,6 +166,23 @@ EOF
   pass "no-push validation exports settings and prints the bake plan"
 }
 
+test_multistage_template_satisfies_oci_gate() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "multistage"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+DOCKERFILE=docker/Dockerfile.multistage
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 0
+  assert_file_contains "$FIXTURE_DIR/docker.log" "DOCKERFILE=docker/Dockerfile.multistage"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  pass "multistage template satisfies required OCI label validation"
+}
+
 test_push_true_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "push-true"
@@ -217,6 +234,24 @@ EOF
   pass "required .dockerignore patterns are enforced"
 }
 
+test_required_oci_label_bindings_are_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "oci-labels"
+  grep -Fv -- 'org.opencontainers.image.source="${OCI_SOURCE}"' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains 'Dockerfile is missing required OCI label binding: org.opencontainers.image.source="${OCI_SOURCE}"'
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "required OCI label bindings are enforced before docker buildx bake"
+}
+
 test_remote_context_skips_local_directory_check() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "remote-context"
@@ -237,9 +272,11 @@ EOF
 
 install_docker_stub
 test_success_uses_no_push_bake_plan
+test_multistage_template_satisfies_oci_gate
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
+test_required_oci_label_bindings_are_enforced
 test_remote_context_skips_local_directory_check
 
 printf '1..%s\n' "$TESTS_RUN"
