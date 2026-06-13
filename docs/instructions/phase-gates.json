@@ -1,14 +1,14 @@
 {
   "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
-  "current_phase": "context-provenance-hardening",
-  "next_phase": "template-maintenance",
+  "current_phase": "template-maintenance",
+  "next_phase": "",
   "transition": {
-    "intent": "Move to template-maintenance only after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
-    "mode": "machine-gated-context-provenance-readiness",
+    "intent": "Keep the public Docker build template in maintenance after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
+    "mode": "template-maintenance-no-pending-transition",
     "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
-    "transition_validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
-    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase.",
+    "transition_validation_command": "",
+    "decision_rule": "Select a new next_phase and transition_validation_command before routing another phase-transition.",
     "phase_update_files": [
       "docs/instructions/phase-gates.json"
     ]
