@@ -1,14 +1,17 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
-  "current_phase": "public-supply-chain-baseline",
-  "next_phase": "context-provenance-hardening",
+  "current_phase": "context-provenance-hardening",
+  "next_phase": "template-maintenance",
   "transition": {
-    "intent": "Move to context-provenance-hardening only after build script syntax, bake planning, and public-safe metadata defaults are stable.",
-    "mode": "machine-gated-template-readiness",
+    "intent": "Move to template-maintenance only after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
+    "mode": "machine-gated-context-provenance-readiness",
     "validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
     "transition_validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
-    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
+    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase.",
+    "phase_update_files": [
+      "docs/instructions/phase-gates.json"
+    ]
   },
   "phase_model": [
     {
@@ -67,46 +70,35 @@
   ],
   "required_gates": [
     {
-      "id": "shell-scripts-parse",
-      "status": "machine-check",
+      "id": "context-hygiene-documented",
+      "status": "pending",
       "required_for_transition": true,
-      "description": "Build and push scripts must parse.",
+      "description": "Docker build context hygiene, including .dockerignore boundaries, must be documented for public template users.",
       "evidence": [
-        "bash -n scripts/build-image.sh scripts/push-image.sh"
-      ]
-    },
-    {
-      "id": "bake-plan-prints",
-      "status": "machine-check",
-      "required_for_transition": true,
-      "description": "The Buildx bake plan must print without pushing.",
-      "evidence": [
-        "docker buildx bake --file buildx/docker-bake.hcl --print"
-      ]
-    },
-    {
-      "id": "oci-labels-present",
-      "status": "machine-check",
-      "required_for_transition": true,
-      "description": "Configurable OCI labels and provenance-ready metadata defaults must exist and be enforced by no-push validation.",
-      "evidence": [
-        "scripts/validate-build-plan.sh",
-        "tests/validate-build-plan.test.sh",
-        "docker/Dockerfile",
-        "docker/Dockerfile.multistage"
+        "docs/build-contract.md",
+        ".dockerignore"
       ],
-      "on_failure": "Stay in public-supply-chain-baseline and add OCI metadata defaults."
+      "on_failure": "Stay in context-provenance-hardening and document build context boundaries before moving to template-maintenance."
     },
     {
-      "id": "dry-run-validation-exists",
-      "status": "machine-check",
+      "id": "sbom-provenance-documented",
+      "status": "pending",
       "required_for_transition": true,
-      "description": "No-push validation for build args, context, Dockerfile, and bake output must exist.",
+      "description": "SBOM, provenance, and attestation modes must be documented with safe public defaults.",
       "evidence": [
-        "scripts/validate-build-plan.sh",
-        "tests/validate-build-plan.test.sh"
+        "docs/build-contract.md"
       ],
-      "on_failure": "Stay in public-supply-chain-baseline and add no-push validation."
+      "on_failure": "Stay in context-provenance-hardening and document SBOM/provenance modes before moving to template-maintenance."
+    },
+    {
+      "id": "buildkit-secret-mount-guidance",
+      "status": "pending",
+      "required_for_transition": true,
+      "description": "BuildKit secret mount guidance must exist so credentials are not passed through build arguments, labels, or copied files.",
+      "evidence": [
+        "docs/build-contract.md"
+      ],
+      "on_failure": "Stay in context-provenance-hardening and document BuildKit secret mount guidance before moving to template-maintenance."
     }
   ]
 }
