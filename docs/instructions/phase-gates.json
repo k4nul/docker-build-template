@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0.0",
+  "project": "devops/docker-build-template",
+  "current_phase": "public-supply-chain-baseline",
+  "next_phase": "context-provenance-hardening",
+  "transition": {
+    "intent": "Move to context-provenance-hardening only after build script syntax, bake planning, and public-safe metadata defaults are stable.",
+    "mode": "machine-gated-template-readiness",
+    "validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh && docker buildx bake --file buildx/docker-bake.hcl --print",
+    "transition_validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh && docker buildx bake --file buildx/docker-bake.hcl --print",
+    "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase."
+  },
+  "phase_model": [
+    {
+      "id": "public-supply-chain-baseline",
+      "purpose": "Establish public-safe Docker build validation and image metadata defaults.",
+      "allowed_work": [
+        "shell syntax validation",
+        "Buildx bake plan validation",
+        "OCI label defaults",
+        "no-push dry-run validation"
+      ],
+      "blocked_work": [
+        "real registry credentials",
+        "default push behavior",
+        "secret values in build args"
+      ],
+      "exit_criteria": [
+        "build scripts parse",
+        "bake plan prints",
+        "OCI labels are present",
+        "no-push validation exists"
+      ]
+    },
+    {
+      "id": "context-provenance-hardening",
+      "purpose": "Document context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance.",
+      "allowed_work": [
+        "build context documentation",
+        "SBOM and provenance documentation",
+        "BuildKit secret mount guidance"
+      ],
+      "blocked_work": [
+        "credential handling beyond documented template guidance"
+      ],
+      "exit_criteria": [
+        "context hygiene is documented",
+        "SBOM/provenance modes are documented",
+        "secret mount guidance exists"
+      ]
+    },
+    {
+      "id": "template-maintenance",
+      "purpose": "Maintain the public Docker build template after readiness gates are complete.",
+      "allowed_work": [
+        "maintenance-audit",
+        "security-review",
+        "docs-update"
+      ],
+      "blocked_work": [
+        "new supply-chain scope without an explicit phase"
+      ],
+      "exit_criteria": [
+        "new template scope is selected"
+      ]
+    }
+  ],
+  "required_gates": [
+    {
+      "id": "shell-scripts-parse",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "Build and push scripts must parse.",
+      "evidence": [
+        "bash -n scripts/build-image.sh scripts/push-image.sh"
+      ]
+    },
+    {
+      "id": "bake-plan-prints",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "The Buildx bake plan must print without pushing.",
+      "evidence": [
+        "docker buildx bake --file buildx/docker-bake.hcl --print"
+      ]
+    },
+    {
+      "id": "oci-labels-present",
+      "status": "pending",
+      "required_for_transition": true,
+      "description": "Configurable OCI labels and provenance-ready metadata defaults must exist.",
+      "evidence": [
+        "docker/Dockerfile"
+      ],
+      "on_failure": "Stay in public-supply-chain-baseline and add OCI metadata defaults."
+    },
+    {
+      "id": "dry-run-validation-exists",
+      "status": "pending",
+      "required_for_transition": true,
+      "description": "No-push validation for build args, context, Dockerfile, and bake output must exist.",
+      "evidence": [
+        "scripts/validate*.sh"
+      ],
+      "on_failure": "Stay in public-supply-chain-baseline and add no-push validation."
+    }
+  ]
+}
