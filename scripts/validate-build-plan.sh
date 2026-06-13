@@ -7,6 +7,16 @@ cd "$REPO_ROOT"
 
 . "$SCRIPT_DIR/build-config.sh"
 
+require_file_contains() {
+  file_path=$1
+  required_text=$2
+
+  if ! grep -F -- "$required_text" "$file_path" >/dev/null; then
+    printf '%s\n' "$file_path is missing required security guidance: $required_text" >&2
+    exit 2
+  fi
+}
+
 load_image_build_settings
 
 if [ "$PUSH" != "false" ]; then
@@ -73,6 +83,26 @@ do
     printf '%s\n' ".dockerignore is missing required pattern: $required_pattern" >&2
     exit 2
   fi
+done
+
+if [ ! -f docs/build-contract.md ]; then
+  printf '%s\n' "docs/build-contract.md is required before validating supply-chain build guidance" >&2
+  exit 2
+fi
+
+for required_guidance in \
+  "Build context hygiene:" \
+  "local configs, dotenv files, credentials" \
+  'through `.dockerignore`' \
+  "Secret handling:" \
+  "do not pass registry credentials, package tokens, or private" \
+  "BuildKit secret" \
+  "build arguments, labels, or copied files" \
+  "SBOM and provenance:" \
+  "attestation publishing" \
+  "private image names"
+do
+  require_file_contains docs/build-contract.md "$required_guidance"
 done
 
 export_image_build_settings

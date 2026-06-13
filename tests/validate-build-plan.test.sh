@@ -108,6 +108,8 @@ make_fixture() {
   cp -R "$REPO_ROOT/config" "$FIXTURE_DIR/"
   cp -R "$REPO_ROOT/docker" "$FIXTURE_DIR/"
   cp -R "$REPO_ROOT/scripts" "$FIXTURE_DIR/"
+  mkdir -p "$FIXTURE_DIR/docs"
+  cp "$REPO_ROOT/docs/build-contract.md" "$FIXTURE_DIR/docs/build-contract.md"
   cp "$REPO_ROOT/.dockerignore" "$FIXTURE_DIR/.dockerignore"
 }
 
@@ -216,6 +218,18 @@ EOF
   pass "missing local context is rejected before docker buildx bake"
 }
 
+test_explicit_missing_config_file_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "missing-config"
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/missing.env"
+
+  assert_status 2
+  assert_output_contains "CONFIG_FILE does not exist: $FIXTURE_DIR/config/missing.env"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "explicit missing CONFIG_FILE is rejected before docker buildx bake"
+}
+
 test_required_dockerignore_patterns_are_enforced() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "dockerignore"
@@ -252,6 +266,41 @@ EOF
   pass "required OCI label bindings are enforced before docker buildx bake"
 }
 
+test_build_contract_is_required_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "missing-build-contract"
+  rm "$FIXTURE_DIR/docs/build-contract.md"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "docs/build-contract.md is required before validating supply-chain build guidance"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "build contract guidance is required before docker buildx bake"
+}
+
+test_build_contract_security_guidance_is_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "build-contract-guidance"
+  grep -Fv -- "BuildKit secret" "$FIXTURE_DIR/docs/build-contract.md" > "$FIXTURE_DIR/docs/build-contract.md.tmp"
+  mv "$FIXTURE_DIR/docs/build-contract.md.tmp" "$FIXTURE_DIR/docs/build-contract.md"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "docs/build-contract.md is missing required security guidance: BuildKit secret"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "build contract security guidance is enforced before docker buildx bake"
+}
+
 test_remote_context_skips_local_directory_check() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "remote-context"
@@ -275,8 +324,11 @@ test_success_uses_no_push_bake_plan
 test_multistage_template_satisfies_oci_gate
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
+test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
 test_required_oci_label_bindings_are_enforced
+test_build_contract_is_required_before_bake
+test_build_contract_security_guidance_is_enforced
 test_remote_context_skips_local_directory_check
 
 printf '1..%s\n' "$TESTS_RUN"
