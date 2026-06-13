@@ -6,8 +6,8 @@
   "transition": {
     "intent": "Move to template-maintenance only after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
     "mode": "machine-gated-context-provenance-readiness",
-    "validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
-    "transition_validation_command": "bash -n scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
+    "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
+    "transition_validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
     "decision_rule": "All required gates must be passed, machine-checkable, or waived before changing current_phase.",
     "phase_update_files": [
       "docs/instructions/phase-gates.json"
@@ -71,32 +71,38 @@
   "required_gates": [
     {
       "id": "context-hygiene-documented",
-      "status": "pending",
+      "status": "machine-check",
       "required_for_transition": true,
-      "description": "Docker build context hygiene, including .dockerignore boundaries, must be documented for public template users.",
+      "description": "Docker build context hygiene, including .dockerignore boundaries, must be documented for public template users and enforced by no-push validation.",
       "evidence": [
         "docs/build-contract.md",
-        ".dockerignore"
+        ".dockerignore",
+        "scripts/validate-build-plan.sh",
+        "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document build context boundaries before moving to template-maintenance."
     },
     {
       "id": "sbom-provenance-documented",
-      "status": "pending",
+      "status": "machine-check",
       "required_for_transition": true,
-      "description": "SBOM, provenance, and attestation modes must be documented with safe public defaults.",
+      "description": "SBOM, provenance, and attestation modes must be documented with safe public defaults and enforced by no-push validation.",
       "evidence": [
-        "docs/build-contract.md"
+        "docs/build-contract.md",
+        "scripts/validate-build-plan.sh",
+        "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document SBOM/provenance modes before moving to template-maintenance."
     },
     {
       "id": "buildkit-secret-mount-guidance",
-      "status": "pending",
+      "status": "machine-check",
       "required_for_transition": true,
-      "description": "BuildKit secret mount guidance must exist so credentials are not passed through build arguments, labels, or copied files.",
+      "description": "BuildKit secret mount guidance must exist and be enforced so credentials are not passed through build arguments, labels, or copied files.",
       "evidence": [
-        "docs/build-contract.md"
+        "docs/build-contract.md",
+        "scripts/validate-build-plan.sh",
+        "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document BuildKit secret mount guidance before moving to template-maintenance."
     }

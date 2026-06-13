@@ -96,10 +96,14 @@ apply_image_config_defaults() {
 }
 
 load_image_build_settings() {
+  CONFIG_FILE_WAS_SET=${CONFIG_FILE+x}
   CONFIG_FILE="${CONFIG_FILE:-config/image.env.example}"
 
   if [ -f "$CONFIG_FILE" ]; then
     load_image_config "$CONFIG_FILE"
+  elif [ -n "$CONFIG_FILE_WAS_SET" ]; then
+    printf '%s\n' "CONFIG_FILE does not exist: $CONFIG_FILE" >&2
+    exit 2
   fi
 
   apply_image_config_defaults
