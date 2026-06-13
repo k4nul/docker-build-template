@@ -11,7 +11,8 @@
   revision value from CI.
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
-  required `.dockerignore` entries, and the Buildx bake plan without pushing.
+  required OCI metadata argument/label bindings, required `.dockerignore`
+  entries, and the Buildx bake plan without pushing.
 - Build context hygiene: keep local configs, dotenv files, credentials, image
   archives, caches, generated outputs, `.codex`, local agent files, and
   management-only docs out of the Docker build context through `.dockerignore`.

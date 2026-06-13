@@ -29,6 +29,32 @@ if [ ! -f "$DOCKERFILE" ]; then
   exit 2
 fi
 
+for required_arg in \
+  OCI_TITLE \
+  OCI_DESCRIPTION \
+  OCI_SOURCE \
+  OCI_REVISION \
+  OCI_LICENSES
+do
+  if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$DOCKERFILE"; then
+    printf '%s\n' "Dockerfile is missing required OCI metadata argument: $required_arg" >&2
+    exit 2
+  fi
+done
+
+for required_label in \
+  'org.opencontainers.image.title="${OCI_TITLE}"' \
+  'org.opencontainers.image.description="${OCI_DESCRIPTION}"' \
+  'org.opencontainers.image.source="${OCI_SOURCE}"' \
+  'org.opencontainers.image.revision="${OCI_REVISION}"' \
+  'org.opencontainers.image.licenses="${OCI_LICENSES}"'
+do
+  if ! grep -F -- "$required_label" "$DOCKERFILE" >/dev/null; then
+    printf '%s\n' "Dockerfile is missing required OCI label binding: $required_label" >&2
+    exit 2
+  fi
+done
+
 if [ ! -f .dockerignore ]; then
   printf '%s\n' ".dockerignore is required before validating a public build context" >&2
   exit 2
