@@ -17,95 +17,117 @@ require_file_contains() {
   fi
 }
 
-load_image_build_settings
+is_remote_context() {
+  case "$1" in
+    *://*|git@*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
-if [ "$PUSH" != "false" ]; then
-  printf '%s\n' "No-push validation requires PUSH=false" >&2
-  exit 2
-fi
+require_no_push_validation_mode() {
+  if [ "$PUSH" != "false" ]; then
+    printf '%s\n' "No-push validation requires PUSH=false" >&2
+    exit 2
+  fi
+}
 
-case "$CONTEXT" in
-  *://*|git@*) ;;
-  *)
+require_build_paths() {
+  if ! is_remote_context "$CONTEXT"; then
     if [ ! -d "$CONTEXT" ]; then
       printf '%s\n' "Build context does not exist: $CONTEXT" >&2
       exit 2
     fi
-    ;;
-esac
+  fi
 
-if [ ! -f "$DOCKERFILE" ]; then
-  printf '%s\n' "Dockerfile does not exist: $DOCKERFILE" >&2
-  exit 2
-fi
-
-for required_arg in \
-  OCI_TITLE \
-  OCI_DESCRIPTION \
-  OCI_SOURCE \
-  OCI_REVISION \
-  OCI_LICENSES
-do
-  if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$DOCKERFILE"; then
-    printf '%s\n' "Dockerfile is missing required OCI metadata argument: $required_arg" >&2
+  if [ ! -f "$DOCKERFILE" ]; then
+    printf '%s\n' "Dockerfile does not exist: $DOCKERFILE" >&2
     exit 2
   fi
-done
+}
 
-for required_label in \
-  'org.opencontainers.image.title="${OCI_TITLE}"' \
-  'org.opencontainers.image.description="${OCI_DESCRIPTION}"' \
-  'org.opencontainers.image.source="${OCI_SOURCE}"' \
-  'org.opencontainers.image.revision="${OCI_REVISION}"' \
-  'org.opencontainers.image.licenses="${OCI_LICENSES}"'
-do
-  if ! grep -F -- "$required_label" "$DOCKERFILE" >/dev/null; then
-    printf '%s\n' "Dockerfile is missing required OCI label binding: $required_label" >&2
+require_dockerfile_oci_metadata() {
+  for required_arg in \
+    OCI_TITLE \
+    OCI_DESCRIPTION \
+    OCI_SOURCE \
+    OCI_REVISION \
+    OCI_LICENSES
+  do
+    if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$DOCKERFILE"; then
+      printf '%s\n' "Dockerfile is missing required OCI metadata argument: $required_arg" >&2
+      exit 2
+    fi
+  done
+
+  for required_label in \
+    'org.opencontainers.image.title="${OCI_TITLE}"' \
+    'org.opencontainers.image.description="${OCI_DESCRIPTION}"' \
+    'org.opencontainers.image.source="${OCI_SOURCE}"' \
+    'org.opencontainers.image.revision="${OCI_REVISION}"' \
+    'org.opencontainers.image.licenses="${OCI_LICENSES}"'
+  do
+    if ! grep -F -- "$required_label" "$DOCKERFILE" >/dev/null; then
+      printf '%s\n' "Dockerfile is missing required OCI label binding: $required_label" >&2
+      exit 2
+    fi
+  done
+}
+
+require_context_hygiene_contract() {
+  if [ ! -f .dockerignore ]; then
+    printf '%s\n' ".dockerignore is required before validating a public build context" >&2
     exit 2
   fi
-done
 
-if [ ! -f .dockerignore ]; then
-  printf '%s\n' ".dockerignore is required before validating a public build context" >&2
-  exit 2
-fi
+  for required_pattern in \
+    ".git" \
+    "config/image.env" \
+    ".env" \
+    ".env.*" \
+    "node_modules" \
+    "dist" \
+    "build"
+  do
+    if ! grep -Fx -- "$required_pattern" .dockerignore >/dev/null; then
+      printf '%s\n' ".dockerignore is missing required pattern: $required_pattern" >&2
+      exit 2
+    fi
+  done
+}
 
-for required_pattern in \
-  ".git" \
-  "config/image.env" \
-  ".env" \
-  ".env.*" \
-  "node_modules" \
-  "dist" \
-  "build"
-do
-  if ! grep -Fx -- "$required_pattern" .dockerignore >/dev/null; then
-    printf '%s\n' ".dockerignore is missing required pattern: $required_pattern" >&2
+require_build_contract_guidance() {
+  if [ ! -f docs/build-contract.md ]; then
+    printf '%s\n' "docs/build-contract.md is required before validating supply-chain build guidance" >&2
     exit 2
   fi
-done
 
-if [ ! -f docs/build-contract.md ]; then
-  printf '%s\n' "docs/build-contract.md is required before validating supply-chain build guidance" >&2
-  exit 2
-fi
+  for required_guidance in \
+    "Build context hygiene:" \
+    "local configs, dotenv files, credentials" \
+    'through `.dockerignore`' \
+    "Secret handling:" \
+    "do not pass registry credentials, package tokens, or private" \
+    "BuildKit secret" \
+    "build arguments, labels, or copied files" \
+    "SBOM and provenance:" \
+    "attestation publishing" \
+    "private image names"
+  do
+    require_file_contains docs/build-contract.md "$required_guidance"
+  done
+}
 
-for required_guidance in \
-  "Build context hygiene:" \
-  "local configs, dotenv files, credentials" \
-  'through `.dockerignore`' \
-  "Secret handling:" \
-  "do not pass registry credentials, package tokens, or private" \
-  "BuildKit secret" \
-  "build arguments, labels, or copied files" \
-  "SBOM and provenance:" \
-  "attestation publishing" \
-  "private image names"
-do
-  require_file_contains docs/build-contract.md "$required_guidance"
-done
+validate_bake_plan() {
+  export_image_build_settings
+  docker buildx bake --file buildx/docker-bake.hcl --print >/dev/null
+}
 
-export_image_build_settings
-docker buildx bake --file buildx/docker-bake.hcl --print >/dev/null
+load_image_build_settings
+require_no_push_validation_mode
+require_build_paths
+require_dockerfile_oci_metadata
+require_context_hygiene_contract
+require_build_contract_guidance
+validate_bake_plan
 
 printf '%s\n' "No-push build plan validation passed for $(image_build_ref)"
