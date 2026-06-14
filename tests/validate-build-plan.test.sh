@@ -78,6 +78,8 @@ set -eu
   printf 'DOCKERFILE=%s\n' "${DOCKERFILE-}"
   printf 'PLATFORMS=%s\n' "${PLATFORMS-}"
   printf 'PUSH=%s\n' "${PUSH-}"
+  printf 'SBOM=%s\n' "${SBOM-}"
+  printf 'PROVENANCE=%s\n' "${PROVENANCE-}"
   printf 'OCI_TITLE=%s\n' "${OCI_TITLE-}"
 } >> "$DOCKER_STUB_LOG"
 
@@ -87,6 +89,33 @@ if [ "$#" -eq 5 ] &&
   [ "$3" = "--file" ] &&
   [ "$4" = "buildx/docker-bake.hcl" ] &&
   [ "$5" = "--print" ]; then
+  printf '{\n'
+  printf '  "target": {\n'
+  printf '    "default": {\n'
+  if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ]; then
+    printf '      "attest": [\n'
+    if [ "${SBOM-}" = "true" ]; then
+      printf '        {"type": "sbom"}'
+      if [ "${PROVENANCE-}" != "false" ]; then
+        printf ',\n'
+      else
+        printf '\n'
+      fi
+    fi
+    if [ "${PROVENANCE-}" = "mode=min" ]; then
+      printf '        {"type": "provenance", "mode": "min"}\n'
+    elif [ "${PROVENANCE-}" = "mode=max" ]; then
+      printf '        {"type": "provenance", "mode": "max"}\n'
+    elif [ "${PROVENANCE-}" = "true" ]; then
+      printf '        {"type": "provenance"}\n'
+    fi
+    printf '      ]\n'
+  else
+    printf '      "attest": []\n'
+  fi
+  printf '    }\n'
+  printf '  }\n'
+  printf '}\n'
   exit 0
 fi
 
@@ -164,8 +193,47 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "IMAGE_TAG=1.2.3"
   assert_file_contains "$FIXTURE_DIR/docker.log" "PLATFORMS=linux/amd64,linux/arm64"
   assert_file_contains "$FIXTURE_DIR/docker.log" "PUSH=false"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "SBOM=false"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_TITLE=Validated App"
   pass "no-push validation exports settings and prints the bake plan"
+}
+
+test_attestation_controls_are_visible_in_no_push_bake_plan() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "attestation-controls"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+SBOM=true
+PROVENANCE=mode=min
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 0
+  assert_file_contains "$FIXTURE_DIR/docker.log" "SBOM=true"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=mode=min"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  pass "attestation controls are exported into the no-push bake plan"
+}
+
+test_unsupported_attestation_controls_are_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "invalid-attestation-controls"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+SBOM=maybe
+PROVENANCE=full
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "SBOM must be true or false"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "unsupported attestation controls are rejected before docker buildx bake"
 }
 
 test_multistage_template_satisfies_oci_gate() {
@@ -321,6 +389,8 @@ EOF
 
 install_docker_stub
 test_success_uses_no_push_bake_plan
+test_attestation_controls_are_visible_in_no_push_bake_plan
+test_unsupported_attestation_controls_are_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake

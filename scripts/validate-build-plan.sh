@@ -110,6 +110,10 @@ require_build_contract_guidance() {
     "BuildKit secret" \
     "build arguments, labels, or copied files" \
     "SBOM and provenance:" \
+    "SBOM=false" \
+    "PROVENANCE=false" \
+    "PROVENANCE=mode=min" \
+    "PROVENANCE=mode=max" \
     "attestation publishing" \
     "private image names"
   do
@@ -122,6 +126,54 @@ validate_bake_plan() {
   docker buildx bake --file buildx/docker-bake.hcl --print >/dev/null
 }
 
+require_bake_plan_attestation_controls() {
+  bake_plan_output=$(mktemp)
+  export_image_build_settings
+
+  if ! docker buildx bake --file buildx/docker-bake.hcl --print > "$bake_plan_output"; then
+    rm -f "$bake_plan_output"
+    return 1
+  fi
+
+  if [ "$SBOM" = "false" ] && grep -F '"type": "sbom"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan enables SBOM attestation while SBOM=false" >&2
+    exit 2
+  fi
+
+  if [ "$PROVENANCE" = "false" ] && grep -F '"type": "provenance"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan enables provenance attestation while PROVENANCE=false" >&2
+    exit 2
+  fi
+
+  if [ "$SBOM" != "false" ] && ! grep -F '"type": "sbom"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan is missing SBOM attestation while SBOM=$SBOM" >&2
+    exit 2
+  fi
+
+  if [ "$PROVENANCE" != "false" ] && ! grep -F '"type": "provenance"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan is missing provenance attestation while PROVENANCE=$PROVENANCE" >&2
+    exit 2
+  fi
+
+  if [ "$PROVENANCE" = "mode=min" ] && ! grep -F '"mode": "min"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan is missing minimum provenance mode" >&2
+    exit 2
+  fi
+
+  if [ "$PROVENANCE" = "mode=max" ] && ! grep -F '"mode": "max"' "$bake_plan_output" >/dev/null; then
+    rm -f "$bake_plan_output"
+    printf '%s\n' "Buildx bake plan is missing maximum provenance mode" >&2
+    exit 2
+  fi
+
+  rm -f "$bake_plan_output"
+}
+
 load_image_build_settings
 require_no_push_validation_mode
 require_build_paths
@@ -129,5 +181,6 @@ require_dockerfile_oci_metadata
 require_context_hygiene_contract
 require_build_contract_guidance
 validate_bake_plan
+require_bake_plan_attestation_controls
 
 printf '%s\n' "No-push build plan validation passed for $(image_build_ref)"

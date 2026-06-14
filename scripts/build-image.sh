@@ -8,7 +8,7 @@ load_image_build_settings
 IMAGE_REF=$(image_build_ref)
 OUTPUT_FLAG=$(image_build_output_flag)
 
-docker buildx build \
+set -- docker buildx build \
   --platform "$PLATFORMS" \
   --file "$DOCKERFILE" \
   --tag "$IMAGE_REF" \
@@ -16,6 +16,16 @@ docker buildx build \
   --build-arg "OCI_DESCRIPTION=$OCI_DESCRIPTION" \
   --build-arg "OCI_SOURCE=$OCI_SOURCE" \
   --build-arg "OCI_REVISION=$OCI_REVISION" \
-  --build-arg "OCI_LICENSES=$OCI_LICENSES" \
-  "$OUTPUT_FLAG" \
-  "$CONTEXT"
+  --build-arg "OCI_LICENSES=$OCI_LICENSES"
+
+if [ "$SBOM" != "false" ]; then
+  set -- "$@" --sbom "$SBOM"
+fi
+
+if [ "$PROVENANCE" != "false" ]; then
+  set -- "$@" --provenance "$PROVENANCE"
+fi
+
+set -- "$@" "$OUTPUT_FLAG" "$CONTEXT"
+
+"$@"

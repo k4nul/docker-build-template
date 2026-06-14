@@ -57,6 +57,12 @@ load_image_config() {
       PUSH)
         PUSH=${PUSH:-$image_config_value}
         ;;
+      SBOM)
+        SBOM=${SBOM:-$image_config_value}
+        ;;
+      PROVENANCE)
+        PROVENANCE=${PROVENANCE:-$image_config_value}
+        ;;
       OCI_TITLE)
         OCI_TITLE=${OCI_TITLE:-$image_config_value}
         ;;
@@ -88,6 +94,8 @@ apply_image_config_defaults() {
   DOCKERFILE="${DOCKERFILE:-docker/Dockerfile}"
   PLATFORMS="${PLATFORMS:-linux/amd64}"
   PUSH="${PUSH:-false}"
+  SBOM="${SBOM:-false}"
+  PROVENANCE="${PROVENANCE:-false}"
   OCI_TITLE="${OCI_TITLE:-Example App}"
   OCI_DESCRIPTION="${OCI_DESCRIPTION:-Reusable Docker build template image}"
   OCI_SOURCE="${OCI_SOURCE:-https://example.com/repository}"
@@ -130,6 +138,8 @@ export_image_build_settings() {
   export DOCKERFILE
   export PLATFORMS
   export PUSH
+  export SBOM
+  export PROVENANCE
   export OCI_TITLE
   export OCI_DESCRIPTION
   export OCI_SOURCE
@@ -167,6 +177,22 @@ validate_image_build_settings() {
     true|false) ;;
     *)
       printf '%s\n' "PUSH must be true or false" >&2
+      exit 2
+      ;;
+  esac
+
+  case "${SBOM:-}" in
+    true|false) ;;
+    *)
+      printf '%s\n' "SBOM must be true or false" >&2
+      exit 2
+      ;;
+  esac
+
+  case "${PROVENANCE:-}" in
+    false|true|mode=min|mode=max) ;;
+    *)
+      printf '%s\n' "PROVENANCE must be false, true, mode=min, or mode=max" >&2
       exit 2
       ;;
   esac

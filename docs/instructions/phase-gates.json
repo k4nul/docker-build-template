@@ -6,7 +6,7 @@
   "transition": {
     "intent": "Keep the public Docker build template in maintenance after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
     "mode": "template-maintenance-no-pending-transition",
-    "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/validate-build-plan.test.sh",
+    "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-image.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-image.test.sh && bash tests/validate-build-plan.test.sh",
     "transition_validation_command": "",
     "decision_rule": "Select a new next_phase and transition_validation_command before routing another phase-transition.",
     "phase_update_files": [
@@ -89,7 +89,12 @@
       "description": "SBOM, provenance, and attestation modes must be documented with safe public defaults and enforced by no-push validation.",
       "evidence": [
         "docs/build-contract.md",
+        "config/image.env.example",
+        "buildx/docker-bake.hcl",
+        "scripts/build-config.sh",
+        "scripts/build-image.sh",
         "scripts/validate-build-plan.sh",
+        "tests/build-image.test.sh",
         "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document SBOM/provenance modes before moving to template-maintenance."
