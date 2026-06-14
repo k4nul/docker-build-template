@@ -22,6 +22,14 @@ variable "PLATFORMS" {
   default = "linux/amd64"
 }
 
+variable "SBOM" {
+  default = "false"
+}
+
+variable "PROVENANCE" {
+  default = "false"
+}
+
 variable "OCI_TITLE" {
   default = "Example App"
 }
@@ -47,6 +55,10 @@ target "default" {
   dockerfile = DOCKERFILE
   tags       = ["${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"]
   platforms  = split(",", PLATFORMS)
+  attest = concat(
+    SBOM == "false" ? [] : ["type=sbom"],
+    PROVENANCE == "false" ? [] : [PROVENANCE == "true" ? "type=provenance" : "type=provenance,${PROVENANCE}"]
+  )
   args = {
     OCI_TITLE       = OCI_TITLE
     OCI_DESCRIPTION = OCI_DESCRIPTION

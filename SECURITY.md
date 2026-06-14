@@ -21,3 +21,8 @@ Do not commit:
 - generated image tarballs
 - build cache directories
 - environment files derived from `config/image.env.example`
+
+Treat OCI labels, SBOM attestations, provenance attestations, and Buildx
+metadata output as disclosure surfaces. Do not place private repository URLs,
+internal registry names, sensitive filesystem paths, tokens, or secrets in build
+arguments, labels, config files, generated metadata, or public issue logs.
