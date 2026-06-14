@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 cd "$REPO_ROOT"
 
 . "$SCRIPT_DIR/build-config.sh"
@@ -24,6 +24,39 @@ is_remote_context() {
   esac
 }
 
+resolve_existing_dir() {
+  dir_path=$1
+
+  CDPATH= cd -- "$dir_path" && pwd -P
+}
+
+resolve_existing_file() {
+  file_path=$1
+  file_dir=${file_path%/*}
+  file_name=${file_path##*/}
+
+  if [ "$file_dir" = "$file_path" ]; then
+    file_dir=.
+  fi
+
+  resolved_dir=$(CDPATH= cd -- "$file_dir" && pwd -P)
+  printf '%s/%s\n' "$resolved_dir" "$file_name"
+}
+
+require_repo_bound_path() {
+  path_label=$1
+  original_path=$2
+  resolved_path=$3
+
+  case "$resolved_path" in
+    "$REPO_ROOT"|"$REPO_ROOT"/*) ;;
+    *)
+      printf '%s\n' "$path_label must stay inside repository: $original_path" >&2
+      exit 2
+      ;;
+  esac
+}
+
 require_no_push_validation_mode() {
   if [ "$PUSH" != "false" ]; then
     printf '%s\n' "No-push validation requires PUSH=false" >&2
@@ -37,12 +70,18 @@ require_build_paths() {
       printf '%s\n' "Build context does not exist: $CONTEXT" >&2
       exit 2
     fi
+
+    resolved_context=$(resolve_existing_dir "$CONTEXT")
+    require_repo_bound_path "Build context" "$CONTEXT" "$resolved_context"
   fi
 
   if [ ! -f "$DOCKERFILE" ]; then
     printf '%s\n' "Dockerfile does not exist: $DOCKERFILE" >&2
     exit 2
   fi
+
+  resolved_dockerfile=$(resolve_existing_file "$DOCKERFILE")
+  require_repo_bound_path "Dockerfile" "$DOCKERFILE" "$resolved_dockerfile"
 }
 
 require_dockerfile_oci_metadata() {
@@ -105,6 +144,7 @@ require_build_contract_guidance() {
     "Build context hygiene:" \
     "local configs, dotenv files, credentials" \
     'through `.dockerignore`' \
+    "context and Dockerfile paths stay inside the repository" \
     "Secret handling:" \
     "do not pass registry credentials, package tokens, or private" \
     "BuildKit secret" \

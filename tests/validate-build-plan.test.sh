@@ -286,6 +286,41 @@ EOF
   pass "missing local context is rejected before docker buildx bake"
 }
 
+test_parent_context_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "parent-context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=..
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Build context must stay inside repository: .."
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "parent-directory context is rejected before docker buildx bake"
+}
+
+test_dockerfile_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "outside-dockerfile"
+  printf '%s\n' "FROM scratch" > "$TEST_ROOT/outside.Dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+DOCKERFILE=../outside.Dockerfile
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must stay inside repository: ../outside.Dockerfile"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "Dockerfile outside the repository is rejected before docker buildx bake"
+}
+
 test_explicit_missing_config_file_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "missing-config"
@@ -394,6 +429,8 @@ test_unsupported_attestation_controls_are_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
+test_parent_context_is_rejected_before_bake
+test_dockerfile_outside_repo_is_rejected_before_bake
 test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
 test_required_oci_label_bindings_are_enforced

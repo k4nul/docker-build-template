@@ -61,6 +61,42 @@ if [ "$#" -ge 3 ] &&
   exit 0
 fi
 
+if [ "$#" -eq 5 ] &&
+  [ "$1" = "buildx" ] &&
+  [ "$2" = "bake" ] &&
+  [ "$3" = "--file" ] &&
+  [ "$4" = "buildx/docker-bake.hcl" ] &&
+  [ "$5" = "--print" ]; then
+  printf '{\n'
+  printf '  "target": {\n'
+  printf '    "default": {\n'
+  if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ]; then
+    printf '      "attest": [\n'
+    if [ "${SBOM-}" = "true" ]; then
+      printf '        {"type": "sbom"}'
+      if [ "${PROVENANCE-}" != "false" ]; then
+        printf ',\n'
+      else
+        printf '\n'
+      fi
+    fi
+    if [ "${PROVENANCE-}" = "mode=min" ]; then
+      printf '        {"type": "provenance", "mode": "min"}\n'
+    elif [ "${PROVENANCE-}" = "mode=max" ]; then
+      printf '        {"type": "provenance", "mode": "max"}\n'
+    elif [ "${PROVENANCE-}" = "true" ]; then
+      printf '        {"type": "provenance"}\n'
+    fi
+    printf '      ]\n'
+  else
+    printf '      "attest": []\n'
+  fi
+  printf '    }\n'
+  printf '  }\n'
+  printf '}\n'
+  exit 0
+fi
+
 printf 'unexpected docker command:' >&2
 for arg do
   printf ' <%s>' "$arg" >&2
@@ -75,8 +111,13 @@ make_fixture() {
   fixture_name=$1
   FIXTURE_DIR="$TEST_ROOT/$fixture_name"
   mkdir -p "$FIXTURE_DIR"
+  cp -R "$REPO_ROOT/buildx" "$FIXTURE_DIR/"
   cp -R "$REPO_ROOT/config" "$FIXTURE_DIR/"
+  cp -R "$REPO_ROOT/docker" "$FIXTURE_DIR/"
   cp -R "$REPO_ROOT/scripts" "$FIXTURE_DIR/"
+  mkdir -p "$FIXTURE_DIR/docs"
+  cp "$REPO_ROOT/docs/build-contract.md" "$FIXTURE_DIR/docs/build-contract.md"
+  cp "$REPO_ROOT/.dockerignore" "$FIXTURE_DIR/.dockerignore"
 }
 
 run_build_script() {
@@ -152,6 +193,8 @@ EOF
 
   run_build_script "$FIXTURE_DIR" ./scripts/push-image.sh "$FIXTURE_DIR/config/test.env"
 
+  assert_log_contains "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_log_contains "args: <buildx> <build>"
   assert_log_contains "<--tag> <registry.example.com/team/push-app:3.0.0>"
   assert_log_contains "<--provenance> <mode=max>"
   assert_log_contains "<--push> <.>"

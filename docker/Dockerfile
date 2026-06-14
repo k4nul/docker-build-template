@@ -15,9 +15,16 @@ LABEL org.opencontainers.image.title="${OCI_TITLE}" \
 
 WORKDIR /app
 
-RUN addgroup -S ${APP_USER} && adduser -S ${APP_USER} -G ${APP_USER}
+RUN case "$APP_USER" in \
+      ""|*[!A-Za-z0-9_-]*) \
+        echo "APP_USER must contain only letters, numbers, underscores, or dashes" >&2; \
+        exit 2; \
+        ;; \
+    esac && \
+    addgroup -S "$APP_USER" && \
+    adduser -S "$APP_USER" -G "$APP_USER"
 COPY . /app
-RUN chown -R ${APP_USER}:${APP_USER} /app
+RUN chown -R "$APP_USER:$APP_USER" /app
 
 USER ${APP_USER}
 CMD ["sh", "-c", "ls -la /app && sleep infinity"]
