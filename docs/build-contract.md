@@ -21,6 +21,10 @@
 - Build context hygiene: keep local configs, dotenv files, credentials, image
   archives, caches, generated outputs, `.codex`, local agent files, and
   management-only docs out of the Docker build context through `.dockerignore`.
+- Base image dependencies: treat Dockerfile `*_IMAGE` argument defaults as the
+  template's dependency inputs. Use explicit tags or digests, do not use
+  `latest`, and review `alpine`, `node`, and `nginx` base image updates as a
+  coherent build-template upgrade with the no-push validation suite.
 - Secret handling: do not pass registry credentials, package tokens, or private
   keys through build arguments, labels, or copied files. Use BuildKit secret
   mounts such as `--secret` in project-specific builds that genuinely need

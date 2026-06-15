@@ -300,6 +300,42 @@ EOF
   pass "multistage template satisfies required OCI label validation"
 }
 
+test_latest_base_image_default_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "latest-base-image"
+  sed 's/alpine:3.20/alpine:latest/' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must not use latest for base image default: RUNTIME_IMAGE=alpine:latest"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "latest base image defaults are rejected before docker buildx bake"
+}
+
+test_untagged_base_image_default_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "untagged-base-image"
+  sed 's/alpine:3.20/alpine/' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile base image default must include an explicit tag or digest: RUNTIME_IMAGE=alpine"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "untagged base image defaults are rejected before docker buildx bake"
+}
+
 test_push_true_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "push-true"
@@ -476,6 +512,8 @@ test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
+test_latest_base_image_default_is_rejected_before_bake
+test_untagged_base_image_default_is_rejected_before_bake
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
 test_parent_context_is_rejected_before_bake

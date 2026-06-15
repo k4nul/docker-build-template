@@ -84,6 +84,50 @@ require_build_paths() {
   require_repo_bound_path "Dockerfile" "$DOCKERFILE" "$resolved_dockerfile"
 }
 
+require_dockerfile_base_image_defaults() {
+  base_image_defaults=$(grep -E '^ARG[[:space:]]+[A-Za-z0-9_]*IMAGE=' "$DOCKERFILE" || true)
+
+  if [ -z "$base_image_defaults" ]; then
+    printf '%s\n' "Dockerfile must declare tagged base image ARG defaults ending in _IMAGE" >&2
+    exit 2
+  fi
+
+  old_ifs=$IFS
+  IFS='
+'
+  for base_image_line in $base_image_defaults; do
+    IFS=$old_ifs
+    set -- $base_image_line
+    base_image_assignment=$2
+    base_image_name=${base_image_assignment%%=*}
+    base_image_value=${base_image_assignment#*=}
+
+    if [ -z "$base_image_value" ]; then
+      printf '%s\n' "Dockerfile base image default must not be empty: $base_image_name" >&2
+      exit 2
+    fi
+
+    case "$base_image_value" in
+      *:latest|*:latest@*)
+        printf '%s\n' "Dockerfile must not use latest for base image default: $base_image_name=$base_image_value" >&2
+        exit 2
+        ;;
+    esac
+
+    case "$base_image_value" in
+      *@sha256:*|*:*) ;;
+      *)
+        printf '%s\n' "Dockerfile base image default must include an explicit tag or digest: $base_image_name=$base_image_value" >&2
+        exit 2
+        ;;
+    esac
+
+    IFS='
+'
+  done
+  IFS=$old_ifs
+}
+
 require_dockerfile_oci_metadata() {
   for required_arg in \
     OCI_TITLE \
@@ -145,6 +189,11 @@ require_build_contract_guidance() {
     "local configs, dotenv files, credentials" \
     'through `.dockerignore`' \
     "context and Dockerfile paths stay inside the repository" \
+    "Base image dependencies:" \
+    "Dockerfile \`*_IMAGE\` argument defaults" \
+    "Use explicit tags or digests" \
+    "do not use" \
+    "\`latest\`" \
     "Secret handling:" \
     "do not pass registry credentials, package tokens, or private" \
     "BuildKit secret" \
@@ -252,6 +301,7 @@ require_bake_plan_attestation_controls() {
 load_image_build_settings
 require_no_push_validation_mode
 require_build_paths
+require_dockerfile_base_image_defaults
 require_dockerfile_oci_metadata
 require_context_hygiene_contract
 require_build_contract_guidance
