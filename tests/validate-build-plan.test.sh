@@ -89,6 +89,18 @@ if [ "$#" -eq 5 ] &&
   [ "$3" = "--file" ] &&
   [ "$4" = "buildx/docker-bake.hcl" ] &&
   [ "$5" = "--print" ]; then
+  if [ "${IMAGE_NAME-}" = "missing-sbom-app" ]; then
+    printf '{\n'
+    printf '  "target": {"default": {"attest": []}}\n'
+    printf '}\n'
+    exit 0
+  fi
+  if [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
+    printf '{\n'
+    printf '  "target": {"default": {"attest": [{"type": "provenance"}]}}\n'
+    printf '}\n'
+    exit 0
+  fi
   printf '{\n'
   printf '  "target": {\n'
   printf '    "default": {\n'
@@ -216,6 +228,41 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=mode=min"
   assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   pass "attestation controls are exported into the no-push bake plan"
+}
+
+test_missing_sbom_attestation_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "missing-sbom-attestation"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=missing-sbom-app
+SBOM=true
+PROVENANCE=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan is missing SBOM attestation while SBOM=true"
+  pass "enabled SBOM must appear in the no-push bake plan"
+}
+
+test_disabled_provenance_attestation_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "unexpected-provenance-attestation"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=unexpected-provenance-app
+PROVENANCE=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan enables provenance attestation while PROVENANCE=false"
+  pass "disabled provenance must be absent from the no-push bake plan"
 }
 
 test_unsupported_attestation_controls_are_rejected_before_bake() {
@@ -425,6 +472,8 @@ EOF
 install_docker_stub
 test_success_uses_no_push_bake_plan
 test_attestation_controls_are_visible_in_no_push_bake_plan
+test_missing_sbom_attestation_is_rejected
+test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_push_true_is_rejected_before_bake

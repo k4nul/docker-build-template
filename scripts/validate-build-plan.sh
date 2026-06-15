@@ -161,12 +161,7 @@ require_build_contract_guidance() {
   done
 }
 
-validate_bake_plan() {
-  export_image_build_settings
-  docker buildx bake --file buildx/docker-bake.hcl --print >/dev/null
-}
-
-require_bake_plan_attestation_controls() {
+write_bake_plan() {
   bake_plan_output=$(mktemp)
   export_image_build_settings
 
@@ -175,41 +170,81 @@ require_bake_plan_attestation_controls() {
     return 1
   fi
 
-  if [ "$SBOM" = "false" ] && grep -F '"type": "sbom"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan enables SBOM attestation while SBOM=false" >&2
-    exit 2
+  printf '%s\n' "$bake_plan_output"
+}
+
+require_bake_plan_contains() {
+  bake_plan_output=$1
+  required_text=$2
+  failure_message=$3
+
+  if ! grep -F "$required_text" "$bake_plan_output" >/dev/null; then
+    printf '%s\n' "$failure_message" >&2
+    return 1
+  fi
+}
+
+require_bake_plan_omits() {
+  bake_plan_output=$1
+  forbidden_text=$2
+  failure_message=$3
+
+  if grep -F "$forbidden_text" "$bake_plan_output" >/dev/null; then
+    printf '%s\n' "$failure_message" >&2
+    return 1
+  fi
+}
+
+exit_bake_plan_check_failed() {
+  bake_plan_output=$1
+
+  rm -f "$bake_plan_output"
+  exit 2
+}
+
+require_bake_plan_attestation_controls() {
+  if ! bake_plan_output=$(write_bake_plan); then
+    return 1
   fi
 
-  if [ "$PROVENANCE" = "false" ] && grep -F '"type": "provenance"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan enables provenance attestation while PROVENANCE=false" >&2
-    exit 2
+  if [ "$SBOM" = "false" ]; then
+    require_bake_plan_omits "$bake_plan_output" '"type": "sbom"' \
+      "Buildx bake plan enables SBOM attestation while SBOM=false" || {
+      exit_bake_plan_check_failed "$bake_plan_output"
+    }
+  else
+    require_bake_plan_contains "$bake_plan_output" '"type": "sbom"' \
+      "Buildx bake plan is missing SBOM attestation while SBOM=$SBOM" || {
+      exit_bake_plan_check_failed "$bake_plan_output"
+    }
   fi
 
-  if [ "$SBOM" != "false" ] && ! grep -F '"type": "sbom"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan is missing SBOM attestation while SBOM=$SBOM" >&2
-    exit 2
+  if [ "$PROVENANCE" = "false" ]; then
+    require_bake_plan_omits "$bake_plan_output" '"type": "provenance"' \
+      "Buildx bake plan enables provenance attestation while PROVENANCE=false" || {
+      exit_bake_plan_check_failed "$bake_plan_output"
+    }
+  else
+    require_bake_plan_contains "$bake_plan_output" '"type": "provenance"' \
+      "Buildx bake plan is missing provenance attestation while PROVENANCE=$PROVENANCE" || {
+      exit_bake_plan_check_failed "$bake_plan_output"
+    }
   fi
 
-  if [ "$PROVENANCE" != "false" ] && ! grep -F '"type": "provenance"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan is missing provenance attestation while PROVENANCE=$PROVENANCE" >&2
-    exit 2
-  fi
-
-  if [ "$PROVENANCE" = "mode=min" ] && ! grep -F '"mode": "min"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan is missing minimum provenance mode" >&2
-    exit 2
-  fi
-
-  if [ "$PROVENANCE" = "mode=max" ] && ! grep -F '"mode": "max"' "$bake_plan_output" >/dev/null; then
-    rm -f "$bake_plan_output"
-    printf '%s\n' "Buildx bake plan is missing maximum provenance mode" >&2
-    exit 2
-  fi
+  case "$PROVENANCE" in
+    mode=min)
+      require_bake_plan_contains "$bake_plan_output" '"mode": "min"' \
+        "Buildx bake plan is missing minimum provenance mode" || {
+        exit_bake_plan_check_failed "$bake_plan_output"
+      }
+      ;;
+    mode=max)
+      require_bake_plan_contains "$bake_plan_output" '"mode": "max"' \
+        "Buildx bake plan is missing maximum provenance mode" || {
+        exit_bake_plan_check_failed "$bake_plan_output"
+      }
+      ;;
+  esac
 
   rm -f "$bake_plan_output"
 }
@@ -220,7 +255,6 @@ require_build_paths
 require_dockerfile_oci_metadata
 require_context_hygiene_contract
 require_build_contract_guidance
-validate_bake_plan
 require_bake_plan_attestation_controls
 
 printf '%s\n' "No-push build plan validation passed for $(image_build_ref)"
