@@ -1,5 +1,13 @@
 # Docker Build Contract
 
+This contract describes the behavior expected from the shell wrappers,
+Dockerfiles, Buildx bake plan, and documentation in this template. Keep it in
+sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
+`scripts/build-image.sh`, `scripts/push-image.sh`, and
+`buildx/docker-bake.hcl`.
+
+## Inputs And Outputs
+
 - Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `SBOM`, `PROVENANCE`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_LICENSES`
 - Default output: local loaded image when `PUSH=false`
 - Registry output: pushed image when `PUSH=true`
@@ -12,12 +20,21 @@
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
   revision value from CI.
+
+## Required Validation
+
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required OCI metadata argument/label bindings, required `.dockerignore`
   entries, attestation controls, and the Buildx bake plan without pushing. Local
   context and Dockerfile paths stay inside the repository so parent-directory or
   host-level paths are rejected before a registry push.
+- Push wrapper behavior: `scripts/push-image.sh` always validates with
+  `PUSH=false` first, then exports `PUSH=true` and delegates to
+  `scripts/build-image.sh`. Keep this sequence when adapting the template to CI.
+
+## Context And Dependencies
+
 - Build context hygiene: keep local configs, dotenv files, credentials, image
   archives, caches, generated outputs, `.codex`, local agent files, and
   management-only docs out of the Docker build context through `.dockerignore`.
@@ -25,6 +42,9 @@
   template's dependency inputs. Use explicit tags or digests, do not use
   `latest`, and review `alpine`, `node`, and `nginx` base image updates as a
   coherent build-template upgrade with the no-push validation suite.
+
+## Secrets And Attestations
+
 - Secret handling: do not pass registry credentials, package tokens, or private
   keys through build arguments, labels, or copied files. Use BuildKit secret
   mounts such as `--secret` in project-specific builds that genuinely need
@@ -36,3 +56,15 @@
   metadata before attestation publishing, including private image names,
   internal paths, source URLs, revision values, and registry details. Do not
   share attestations outside the intended registry boundary before that review.
+
+## Review Checklist
+
+- Keep `PUSH=false` during local validation and first CI plan review.
+- Confirm `.dockerignore` excludes local config, credentials, caches, generated
+  files, and image archive outputs.
+- Confirm each Dockerfile used by the template declares OCI metadata arguments
+  and label bindings.
+- Confirm base image defaults use explicit tags or digests.
+- Confirm registry login happens outside the template scripts.
+- Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit
+  data before registry publishing.
