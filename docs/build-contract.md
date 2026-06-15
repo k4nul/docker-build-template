@@ -32,6 +32,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and delegates to
   `scripts/build-image.sh`. Keep this sequence when adapting the template to CI.
+- Maintenance runbook: keep [docs/maintenance.md](maintenance.md) aligned with
+  this contract so users can follow the same no-push validation, CI override,
+  multi-platform, and attestation review sequence without reading the scripts.
 
 ## Context And Dependencies
 

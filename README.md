@@ -78,6 +78,10 @@ want to run the build with the configured `--load` or `--push` output behavior.
 Use `scripts/push-image.sh` for CI push jobs; it validates with `PUSH=false`
 first, then exports `PUSH=true` for the build.
 
+For an operator-focused sequence that covers local validation, CI overrides,
+multi-platform publishing, and attestation review, see
+[docs/maintenance.md](docs/maintenance.md).
+
 ## Multi-Platform Builds
 
 For a single local test build, keep `PLATFORMS=linux/amd64` and `PUSH=false` so
@@ -117,4 +121,5 @@ publishing outside the intended registry boundary.
   `PROVENANCE=mode=min`, or `PROVENANCE=mode=max` when provenance is intended.
 
 See [docs/build-contract.md](docs/build-contract.md) for the full build contract
-and supply-chain guidance.
+and supply-chain guidance. See [docs/maintenance.md](docs/maintenance.md) for a
+step-by-step maintenance runbook.
