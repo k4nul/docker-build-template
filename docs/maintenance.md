@@ -83,6 +83,9 @@ PLATFORMS=linux/amd64
 PUSH=false
 ```
 
+Direct `scripts/build-image.sh` runs reject comma-separated `PLATFORMS` values
+while `PUSH=false` because local `--load` output is a single-platform workflow.
+
 Use comma-separated platforms for registry publishing:
 
 ```text
@@ -124,7 +127,9 @@ context.
 
 If a project-specific build needs a short-lived package token or private key,
 use BuildKit secret mounts in that project adaptation. Do not pass secrets
-through build arguments, OCI labels, or files copied by the Dockerfile.
+through build arguments, OCI labels, or files copied by the Dockerfile. Public
+image identity and OCI metadata values must not include URL userinfo, token-like
+strings, private keys, private registry names, or internal paths.
 
 ## Review Checklist
 
@@ -137,4 +142,6 @@ through build arguments, OCI labels, or files copied by the Dockerfile.
 - `.dockerignore` keeps local config, credentials, caches, and generated output
   out of the build context.
 - `OCI_SOURCE` is a public source URL and `OCI_REVISION` is the CI commit SHA.
+- Public image identity and OCI metadata values do not include URL userinfo,
+  token-like strings, private keys, private registry names, or internal paths.
 - `SBOM` and `PROVENANCE` settings match the reviewed Buildx plan.

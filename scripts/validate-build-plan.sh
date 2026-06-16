@@ -171,9 +171,24 @@ require_context_hygiene_contract() {
     "config/image.env" \
     ".env" \
     ".env.*" \
+    ".codex" \
+    "AGENTS.md" \
+    "docs/management" \
+    "out" \
     "node_modules" \
     "dist" \
-    "build"
+    "build" \
+    "coverage" \
+    ".cache" \
+    ".npm" \
+    "*.log" \
+    "*.tar" \
+    "*.tar.gz" \
+    "*.oci" \
+    "*.pem" \
+    "*.key" \
+    "id_rsa" \
+    "id_ed25519"
   do
     if ! grep -Fx -- "$required_pattern" .dockerignore >/dev/null; then
       printf '%s\n' ".dockerignore is missing required pattern: $required_pattern" >&2

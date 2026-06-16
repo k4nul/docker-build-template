@@ -21,7 +21,7 @@ archives, or build cache output.
 cp config/image.env.example config/image.env
 CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
 CONFIG_FILE=config/image.env ./scripts/build-image.sh
-CONFIG_FILE=config/image.env ./scripts/push-image.sh
+CONFIG_FILE=config/image.env ./scripts/push-image.sh # after registry login
 docker buildx bake --file buildx/docker-bake.hcl --print
 ```
 
@@ -53,7 +53,10 @@ revision metadata without editing files.
 
 The computed image reference is `${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}`. Do not
 store registry credentials in `config/image.env`; authenticate with the registry
-through the Docker client or CI secret store before running a push job.
+through the Docker client or CI secret store before running a push job. Values
+that flow into image references, build arguments, or OCI labels are public build
+metadata; validation rejects URL userinfo and common token or private-key
+markers before Docker is called.
 
 ## Validation Flow
 
@@ -61,6 +64,8 @@ Run `scripts/validate-build-plan.sh` before enabling a registry push. The script
 requires `PUSH=false` and checks:
 
 - config shape and supported values.
+- image reference and OCI metadata values do not include URL userinfo or
+  obvious credential material.
 - local build context and Dockerfile paths stay inside the repository.
 - Dockerfile base image defaults use explicit tags or digests instead of
   `latest`.
@@ -90,14 +95,18 @@ the result can be loaded into the local Docker image store. For multi-platform
 publishing, set a comma-separated value such as
 `PLATFORMS=linux/amd64,linux/arm64` and run the push path after validation.
 Buildx multi-platform output is intended for registry pushes, not local `--load`
-workflows.
+workflows. Direct `scripts/build-image.sh` runs reject comma-separated platform
+lists while `PUSH=false`; validate the plan first, then use
+`scripts/push-image.sh` for multi-platform registry output.
 
 ## Metadata And Attestations
 
 The Dockerfiles accept `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`,
 `OCI_REVISION`, and `OCI_LICENSES` as build arguments and stamp them into
 Open Containers labels. CI should set `OCI_SOURCE` to the public repository URL
-and `OCI_REVISION` to the commit SHA being built.
+and `OCI_REVISION` to the commit SHA being built. Do not include credentialed
+URLs, package tokens, private keys, internal paths, or private registry names in
+these values.
 
 Keep `SBOM=false` and `PROVENANCE=false` until a no-push plan has been reviewed.
 When enabling attestations, prefer `PROVENANCE=mode=min` before
@@ -111,6 +120,13 @@ publishing outside the intended registry boundary.
   path or unset an environment-level `PUSH=true` override.
 - `PUSH=true builds must run through scripts/push-image.sh`: use the push wrapper
   so registry output cannot bypass no-push validation.
+- `PUSH=false local loads require a single platform`: set one local platform for
+  `scripts/build-image.sh`, or validate first and use `scripts/push-image.sh`
+  for multi-platform registry output.
+- `must not include URL userinfo or credentials`: remove embedded usernames,
+  passwords, or tokens from public image reference and OCI metadata values.
+- `must not contain credential-like token material`: replace token-looking
+  metadata with public-safe values before validating or publishing.
 - `Build context must stay inside repository`: use a repository-local context
   path. Parent-directory and host-level paths are rejected for local contexts.
 - `.dockerignore is missing required pattern`: add the missing exclusion before

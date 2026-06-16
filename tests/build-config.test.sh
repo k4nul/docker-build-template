@@ -236,6 +236,38 @@ EOF
   pass "invalid boolean and provenance controls are rejected during validation"
 }
 
+test_url_userinfo_config_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/url-userinfo.env"
+  output_file="$TEST_ROOT/url-userinfo.out"
+
+  cat > "$config_file" <<'EOF'
+OCI_SOURCE=https://user:token@example.com/private/repository
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_SOURCE must not include URL userinfo or credentials"
+  pass "URL userinfo is rejected before metadata reaches build args or labels"
+}
+
+test_token_like_config_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/token-like.env"
+  output_file="$TEST_ROOT/token-like.out"
+
+  cat > "$config_file" <<'EOF'
+OCI_DESCRIPTION=ghp_exampletokenmustnotbeused
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_DESCRIPTION must not contain credential-like token material"
+  pass "token-like metadata is rejected before build args or labels"
+}
+
 test_empty_config_values_fall_back_to_defaults() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/empty-values.env"
@@ -291,6 +323,8 @@ test_environment_values_override_config_file_values
 test_invalid_config_lines_are_rejected
 test_unsupported_config_keys_are_rejected
 test_invalid_boolean_and_provenance_values_are_rejected
+test_url_userinfo_config_values_are_rejected
+test_token_like_config_values_are_rejected
 test_empty_config_values_fall_back_to_defaults
 test_missing_explicit_config_file_is_rejected
 test_defaults_remain_valid_when_exported_for_buildx

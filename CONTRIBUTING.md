@@ -6,8 +6,9 @@ Dockerfile, image name, tag, platform, and push behavior configurable.
 ## Local Setup
 
 ```bash
-bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-image.test.sh tests/validate-build-plan.test.sh
+bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/validate-build-plan.test.sh
 ./scripts/validate-build-plan.sh
+bash tests/build-config.test.sh
 bash tests/build-image.test.sh
 bash tests/validate-build-plan.test.sh
 docker buildx bake --file buildx/docker-bake.hcl --print

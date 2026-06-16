@@ -130,6 +130,51 @@ image_build_output_flag() {
   fi
 }
 
+contains_url_userinfo() {
+  public_value=$1
+
+  case "$public_value" in
+    *://*)
+      public_url_authority=${public_value#*://}
+      public_url_authority=${public_url_authority%%/*}
+      case "$public_url_authority" in
+        *@*) return 0 ;;
+      esac
+      ;;
+  esac
+
+  return 1
+}
+
+require_public_build_value() {
+  public_setting_name=$1
+  public_setting_value=$2
+
+  if contains_url_userinfo "$public_setting_value"; then
+    printf '%s\n' "$public_setting_name must not include URL userinfo or credentials" >&2
+    exit 2
+  fi
+
+  case "$public_setting_value" in
+    *ghp_*|*github_pat_*|*glpat-*|*xoxb-*|*xoxp-*|*"-----BEGIN "*"PRIVATE KEY-----"*)
+      printf '%s\n' "$public_setting_name must not contain credential-like token material" >&2
+      exit 2
+      ;;
+  esac
+}
+
+require_single_platform_load() {
+  if [ "$PUSH" = "false" ]; then
+    case "$PLATFORMS" in
+      *,*)
+        printf '%s\n' \
+          "PUSH=false local loads require a single platform; use scripts/push-image.sh for multi-platform registry output" >&2
+        exit 2
+        ;;
+    esac
+  fi
+}
+
 run_image_build() {
   image_build_ref_value=$(image_build_ref)
   image_build_output_flag_value=$(image_build_output_flag)
@@ -248,4 +293,13 @@ validate_image_build_settings() {
     printf '%s\n' "OCI_LICENSES must not be empty" >&2
     exit 2
   fi
+
+  require_public_build_value REGISTRY "$REGISTRY"
+  require_public_build_value IMAGE_NAME "$IMAGE_NAME"
+  require_public_build_value IMAGE_TAG "$IMAGE_TAG"
+  require_public_build_value OCI_TITLE "$OCI_TITLE"
+  require_public_build_value OCI_DESCRIPTION "$OCI_DESCRIPTION"
+  require_public_build_value OCI_SOURCE "$OCI_SOURCE"
+  require_public_build_value OCI_REVISION "$OCI_REVISION"
+  require_public_build_value OCI_LICENSES "$OCI_LICENSES"
 }

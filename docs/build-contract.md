@@ -9,7 +9,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 ## Inputs And Outputs
 
 - Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `SBOM`, `PROVENANCE`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_LICENSES`
-- Default output: local loaded image when `PUSH=false`
+- Default output: local loaded image when `PUSH=false` and `PLATFORMS` names a
+  single platform
 - Registry output: pushed image when `PUSH=true` through the validated push wrapper
 - Multi-platform behavior: use `PLATFORMS=linux/amd64,linux/arm64` with `PUSH=true`
 - Attestation defaults: `SBOM=false` and `PROVENANCE=false` keep generated
@@ -26,14 +27,17 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required OCI metadata argument/label bindings, required `.dockerignore`
-  entries, attestation controls, and the Buildx bake plan without pushing. Local
-  context and Dockerfile paths stay inside the repository so parent-directory or
-  host-level paths are rejected before a registry push.
+  entries, public-safe image reference and OCI metadata values, attestation
+  controls, and the Buildx bake plan without pushing.
+  The context and Dockerfile paths stay inside the repository, so
+  parent-directory or host-level paths are rejected before a registry push.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
   Keep this sequence when adapting the template to CI.
   Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected so registry
-  output cannot bypass no-push validation.
+  output cannot bypass no-push validation. Direct local `scripts/build-image.sh`
+  calls with comma-separated `PLATFORMS` are also rejected while `PUSH=false`;
+  multi-platform output must use the validated push wrapper.
 - Maintenance runbook: keep [docs/maintenance.md](maintenance.md) aligned with
   this contract so users can follow the same no-push validation, CI override,
   multi-platform, and attestation review sequence without reading the scripts.
@@ -54,7 +58,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   keys through build arguments, labels, or copied files. Use BuildKit secret
   mounts such as `--secret` in project-specific builds that genuinely need
   short-lived credentials, and keep those secret files out of Git and the build
-  context.
+  context. Public build values that become image references, build arguments, or
+  labels must not include URL userinfo or obvious token/private-key markers.
 - SBOM and provenance: keep `SBOM=false` and `PROVENANCE=false` until a no-push
   plan has been reviewed. Use `SBOM=true` to include an SBOM attestation and
   prefer `PROVENANCE=mode=min` before `PROVENANCE=mode=max`. Review generated
@@ -73,3 +78,5 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Confirm registry login happens outside the template scripts.
 - Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit
   data before registry publishing.
+- Confirm image identity and OCI metadata values do not contain URL userinfo,
+  package tokens, private keys, private registry names, or internal paths.

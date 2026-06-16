@@ -308,11 +308,31 @@ EOF
   pass "direct PUSH=true builds are rejected before docker buildx build"
 }
 
+test_multi_platform_local_load_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "multi-platform-load"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+IMAGE_NAME=multi-platform-load-app
+PLATFORMS=linux/amd64,linux/arm64
+PUSH=false
+EOF
+
+  run_build_script_probe "$FIXTURE_DIR" ./scripts/build-image.sh "$FIXTURE_DIR/config/test.env"
+
+  assert_build_status 2
+  assert_build_output_contains \
+    "PUSH=false local loads require a single platform; use scripts/push-image.sh for multi-platform registry output"
+  assert_log_empty
+  pass "direct local loads reject multi-platform output before docker buildx build"
+}
+
 install_docker_stub
 test_default_build_loads_without_attestations
 test_attestation_controls_are_forwarded_to_buildx
 test_push_script_forces_registry_output
 test_push_script_builds_from_repo_root_when_called_elsewhere
 test_direct_push_requires_validated_wrapper
+test_multi_platform_local_load_is_rejected
 
 printf '1..%s\n' "$TESTS_RUN"

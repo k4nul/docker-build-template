@@ -286,6 +286,23 @@ EOF
   pass "unsupported attestation controls are rejected before docker buildx bake"
 }
 
+test_secret_like_metadata_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "secret-like-metadata"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+OCI_SOURCE=https://user:token@example.com/private/repository
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "OCI_SOURCE must not include URL userinfo or credentials"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "secret-like metadata is rejected before docker buildx bake"
+}
+
 test_multistage_template_satisfies_oci_gate() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "multistage"
@@ -442,6 +459,24 @@ EOF
   pass "required .dockerignore patterns are enforced"
 }
 
+test_credential_dockerignore_patterns_are_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "dockerignore-credentials"
+  grep -Fxv -- "*.pem" "$FIXTURE_DIR/.dockerignore" > "$FIXTURE_DIR/.dockerignore.tmp"
+  mv "$FIXTURE_DIR/.dockerignore.tmp" "$FIXTURE_DIR/.dockerignore"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is missing required pattern: *.pem"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "credential .dockerignore patterns are enforced"
+}
+
 test_required_oci_label_bindings_are_enforced() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "oci-labels"
@@ -527,6 +562,7 @@ test_attestation_controls_are_visible_in_no_push_bake_plan
 test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
+test_secret_like_metadata_is_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_latest_base_image_default_is_rejected_before_bake
 test_untagged_base_image_default_is_rejected_before_bake
@@ -536,6 +572,7 @@ test_parent_context_is_rejected_before_bake
 test_dockerfile_outside_repo_is_rejected_before_bake
 test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
+test_credential_dockerignore_patterns_are_enforced
 test_required_oci_label_bindings_are_enforced
 test_build_contract_is_required_before_bake
 test_build_contract_security_guidance_is_enforced

@@ -15,4 +15,5 @@ if [ "$PUSH" = "true" ]; then
   exit 2
 fi
 
+require_single_platform_load
 run_image_build

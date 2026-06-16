@@ -25,4 +25,7 @@ Do not commit:
 Treat OCI labels, SBOM attestations, provenance attestations, and Buildx
 metadata output as disclosure surfaces. Do not place private repository URLs,
 internal registry names, sensitive filesystem paths, tokens, or secrets in build
-arguments, labels, config files, generated metadata, or public issue logs.
+arguments, labels, config files, generated metadata, or public issue logs. The
+build validation rejects URL userinfo and common token/private-key markers in
+public image identity and OCI metadata values, but it is not a replacement for
+secret scanning or review.
