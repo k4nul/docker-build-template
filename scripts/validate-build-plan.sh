@@ -257,47 +257,52 @@ exit_bake_plan_check_failed() {
   exit 2
 }
 
+require_bake_plan_check() {
+  bake_plan_output=$1
+  check_function=$2
+  required_text=$3
+  failure_message=$4
+
+  "$check_function" "$bake_plan_output" "$required_text" "$failure_message" || {
+    exit_bake_plan_check_failed "$bake_plan_output"
+  }
+}
+
 require_bake_plan_attestation_controls() {
   if ! bake_plan_output=$(write_bake_plan); then
     return 1
   fi
 
   if [ "$SBOM" = "false" ]; then
-    require_bake_plan_omits "$bake_plan_output" '"type": "sbom"' \
-      "Buildx bake plan enables SBOM attestation while SBOM=false" || {
-      exit_bake_plan_check_failed "$bake_plan_output"
-    }
+    require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \
+      '"type": "sbom"' \
+      "Buildx bake plan enables SBOM attestation while SBOM=false"
   else
-    require_bake_plan_contains "$bake_plan_output" '"type": "sbom"' \
-      "Buildx bake plan is missing SBOM attestation while SBOM=$SBOM" || {
-      exit_bake_plan_check_failed "$bake_plan_output"
-    }
+    require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+      '"type": "sbom"' \
+      "Buildx bake plan is missing SBOM attestation while SBOM=$SBOM"
   fi
 
   if [ "$PROVENANCE" = "false" ]; then
-    require_bake_plan_omits "$bake_plan_output" '"type": "provenance"' \
-      "Buildx bake plan enables provenance attestation while PROVENANCE=false" || {
-      exit_bake_plan_check_failed "$bake_plan_output"
-    }
+    require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \
+      '"type": "provenance"' \
+      "Buildx bake plan enables provenance attestation while PROVENANCE=false"
   else
-    require_bake_plan_contains "$bake_plan_output" '"type": "provenance"' \
-      "Buildx bake plan is missing provenance attestation while PROVENANCE=$PROVENANCE" || {
-      exit_bake_plan_check_failed "$bake_plan_output"
-    }
+    require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+      '"type": "provenance"' \
+      "Buildx bake plan is missing provenance attestation while PROVENANCE=$PROVENANCE"
   fi
 
   case "$PROVENANCE" in
     mode=min)
-      require_bake_plan_contains "$bake_plan_output" '"mode": "min"' \
-        "Buildx bake plan is missing minimum provenance mode" || {
-        exit_bake_plan_check_failed "$bake_plan_output"
-      }
+      require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+        '"mode": "min"' \
+        "Buildx bake plan is missing minimum provenance mode"
       ;;
     mode=max)
-      require_bake_plan_contains "$bake_plan_output" '"mode": "max"' \
-        "Buildx bake plan is missing maximum provenance mode" || {
-        exit_bake_plan_check_failed "$bake_plan_output"
-      }
+      require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+        '"mode": "max"' \
+        "Buildx bake plan is missing maximum provenance mode"
       ;;
   esac
 
