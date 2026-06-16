@@ -10,6 +10,7 @@ List the commands you ran, or explain why a command was not applicable.
 
 - [ ] Local image config and registry credentials are not committed.
 - [ ] Push behavior remains opt-in.
+- [ ] Registry push behavior still goes through `scripts/push-image.sh` validation.
 - [ ] SBOM and provenance attestations remain opt-in.
 - [ ] OCI metadata args, labels, and bake args stay aligned.
 - [ ] Public examples do not require private infrastructure.

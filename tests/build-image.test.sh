@@ -5,6 +5,8 @@ REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 TEST_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/docker-build-template-build-tests.XXXXXX")
 STUB_DIR="$TEST_ROOT/bin"
 TESTS_RUN=0
+BUILD_OUTPUT=
+BUILD_STATUS=
 
 cleanup() {
   rm -rf "$TEST_ROOT"
@@ -39,6 +41,27 @@ assert_log_not_contains() {
   fi
 }
 
+assert_log_empty() {
+  if [ -s "$DOCKER_STUB_LOG" ]; then
+    fail "expected no docker calls"
+  fi
+}
+
+assert_build_status() {
+  expected_status=$1
+  if [ "$BUILD_STATUS" -ne "$expected_status" ]; then
+    fail "expected build status $expected_status, got $BUILD_STATUS"
+  fi
+}
+
+assert_build_output_contains() {
+  expected_output=$1
+  case "$BUILD_OUTPUT" in
+    *"$expected_output"*) ;;
+    *) fail "expected build output to contain: $expected_output" ;;
+  esac
+}
+
 install_docker_stub() {
   mkdir -p "$STUB_DIR"
   cat > "$STUB_DIR/docker" <<'SH'
@@ -53,6 +76,7 @@ set -eu
     printf ' <%s>' "$arg"
   done
   printf '\n'
+  printf 'pwd: <%s>\n' "$(pwd)"
 } >> "$DOCKER_STUB_LOG"
 
 if [ "$#" -ge 3 ] &&
@@ -134,6 +158,41 @@ run_build_script() {
   )
 }
 
+run_build_script_probe() {
+  fixture_dir=$1
+  script_path=$2
+  config_file=$3
+  output_file="$fixture_dir/build.out"
+  DOCKER_STUB_LOG="$fixture_dir/docker.log"
+  export DOCKER_STUB_LOG
+  : > "$DOCKER_STUB_LOG"
+
+  set +e
+  (
+    cd "$fixture_dir"
+    PATH="$STUB_DIR:$PATH" CONFIG_FILE="$config_file" "$script_path"
+  ) > "$output_file" 2>&1
+  BUILD_STATUS=$?
+  set -e
+
+  BUILD_OUTPUT=$(cat "$output_file")
+}
+
+run_build_script_from_dir() {
+  fixture_dir=$1
+  script_path=$2
+  config_file=$3
+  run_dir=$4
+  DOCKER_STUB_LOG="$fixture_dir/docker.log"
+  export DOCKER_STUB_LOG
+  : > "$DOCKER_STUB_LOG"
+
+  (
+    cd "$run_dir"
+    PATH="$STUB_DIR:$PATH" CONFIG_FILE="$config_file" "$script_path"
+  )
+}
+
 test_default_build_loads_without_attestations() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "default-build"
@@ -202,9 +261,58 @@ EOF
   pass "push wrapper forces registry output while preserving configured attestations"
 }
 
+test_push_script_builds_from_repo_root_when_called_elsewhere() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "push-outside-cwd"
+  run_dir="$TEST_ROOT/outside-cwd"
+  mkdir -p "$run_dir"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=outside-cwd-app
+IMAGE_TAG=3.1.0
+PUSH=false
+EOF
+
+  run_build_script_from_dir \
+    "$FIXTURE_DIR" \
+    "$FIXTURE_DIR/scripts/push-image.sh" \
+    "$FIXTURE_DIR/config/test.env" \
+    "$run_dir"
+
+  assert_log_contains "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_log_contains "args: <buildx> <build>"
+  assert_log_contains "pwd: <$FIXTURE_DIR>"
+  assert_log_contains "<--tag> <registry.example.com/team/outside-cwd-app:3.1.0>"
+  assert_log_contains "<--push> <.>"
+  pass "push wrapper validates and builds from the repository root when called elsewhere"
+}
+
+test_direct_push_requires_validated_wrapper() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "direct-push"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=direct-push-app
+IMAGE_TAG=4.0.0
+PUSH=true
+EOF
+
+  run_build_script_probe "$FIXTURE_DIR" ./scripts/build-image.sh "$FIXTURE_DIR/config/test.env"
+
+  assert_build_status 2
+  assert_build_output_contains \
+    "PUSH=true builds must run through scripts/push-image.sh after no-push validation"
+  assert_log_empty
+  pass "direct PUSH=true builds are rejected before docker buildx build"
+}
+
 install_docker_stub
 test_default_build_loads_without_attestations
 test_attestation_controls_are_forwarded_to_buildx
 test_push_script_forces_registry_output
+test_push_script_builds_from_repo_root_when_called_elsewhere
+test_direct_push_requires_validated_wrapper
 
 printf '1..%s\n' "$TESTS_RUN"

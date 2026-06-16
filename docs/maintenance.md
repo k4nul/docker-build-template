@@ -69,9 +69,10 @@ OCI_REVISION="$CI_COMMIT_SHA" \
 ```
 
 `scripts/push-image.sh` forces `PUSH=false` for
-`scripts/validate-build-plan.sh`, then exports `PUSH=true` before delegating to
-`scripts/build-image.sh`. Keep that order when adapting the template so the
-registry push path cannot bypass no-push validation.
+`scripts/validate-build-plan.sh`, then exports `PUSH=true` before running the
+shared build command. Keep that order when adapting the template so the registry
+push path cannot bypass no-push validation. Direct `scripts/build-image.sh`
+calls with `PUSH=true` are rejected.
 
 ## Multi-Platform Publishing
 
@@ -90,7 +91,8 @@ PUSH=true
 ```
 
 Buildx multi-platform output is intended for registry pushes. Validate the plan
-with `PUSH=false` first, then use `scripts/push-image.sh` after registry login.
+with `PUSH=false` first, then use `scripts/push-image.sh` after registry login so
+the push cannot bypass no-push validation.
 
 ## SBOM And Provenance Review
 

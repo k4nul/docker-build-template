@@ -2,30 +2,17 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
+cd "$REPO_ROOT"
+
 . "$SCRIPT_DIR/build-config.sh"
 
 load_image_build_settings
-IMAGE_REF=$(image_build_ref)
-OUTPUT_FLAG=$(image_build_output_flag)
 
-set -- docker buildx build \
-  --platform "$PLATFORMS" \
-  --file "$DOCKERFILE" \
-  --tag "$IMAGE_REF" \
-  --build-arg "OCI_TITLE=$OCI_TITLE" \
-  --build-arg "OCI_DESCRIPTION=$OCI_DESCRIPTION" \
-  --build-arg "OCI_SOURCE=$OCI_SOURCE" \
-  --build-arg "OCI_REVISION=$OCI_REVISION" \
-  --build-arg "OCI_LICENSES=$OCI_LICENSES"
-
-if [ "$SBOM" != "false" ]; then
-  set -- "$@" --sbom "$SBOM"
+if [ "$PUSH" = "true" ]; then
+  printf '%s\n' \
+    "PUSH=true builds must run through scripts/push-image.sh after no-push validation" >&2
+  exit 2
 fi
 
-if [ "$PROVENANCE" != "false" ]; then
-  set -- "$@" --provenance "$PROVENANCE"
-fi
-
-set -- "$@" "$OUTPUT_FLAG" "$CONTEXT"
-
-"$@"
+run_image_build

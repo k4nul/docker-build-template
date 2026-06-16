@@ -130,6 +130,33 @@ image_build_output_flag() {
   fi
 }
 
+run_image_build() {
+  image_build_ref_value=$(image_build_ref)
+  image_build_output_flag_value=$(image_build_output_flag)
+
+  set -- docker buildx build \
+    --platform "$PLATFORMS" \
+    --file "$DOCKERFILE" \
+    --tag "$image_build_ref_value" \
+    --build-arg "OCI_TITLE=$OCI_TITLE" \
+    --build-arg "OCI_DESCRIPTION=$OCI_DESCRIPTION" \
+    --build-arg "OCI_SOURCE=$OCI_SOURCE" \
+    --build-arg "OCI_REVISION=$OCI_REVISION" \
+    --build-arg "OCI_LICENSES=$OCI_LICENSES"
+
+  if [ "$SBOM" != "false" ]; then
+    set -- "$@" --sbom "$SBOM"
+  fi
+
+  if [ "$PROVENANCE" != "false" ]; then
+    set -- "$@" --provenance "$PROVENANCE"
+  fi
+
+  set -- "$@" "$image_build_output_flag_value" "$CONTEXT"
+
+  "$@"
+}
+
 export_image_build_settings() {
   export REGISTRY
   export IMAGE_NAME

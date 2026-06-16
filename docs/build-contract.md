@@ -10,12 +10,12 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 
 - Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `SBOM`, `PROVENANCE`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_LICENSES`
 - Default output: local loaded image when `PUSH=false`
-- Registry output: pushed image when `PUSH=true`
+- Registry output: pushed image when `PUSH=true` through the validated push wrapper
 - Multi-platform behavior: use `PLATFORMS=linux/amd64,linux/arm64` with `PUSH=true`
 - Attestation defaults: `SBOM=false` and `PROVENANCE=false` keep generated
   metadata disabled until a project explicitly opts in after no-push plan
   validation.
-- CI integration: call `scripts/build-image.sh` from Jenkins or another runner after registry login
+- CI integration: call `scripts/push-image.sh` from Jenkins or another runner after registry login
 - Image metadata: set the `OCI_*` inputs in `config/image.env` or the runner
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
@@ -30,8 +30,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   context and Dockerfile paths stay inside the repository so parent-directory or
   host-level paths are rejected before a registry push.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
-  `PUSH=false` first, then exports `PUSH=true` and delegates to
-  `scripts/build-image.sh`. Keep this sequence when adapting the template to CI.
+  `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
+  Keep this sequence when adapting the template to CI.
+  Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected so registry
+  output cannot bypass no-push validation.
 - Maintenance runbook: keep [docs/maintenance.md](maintenance.md) aligned with
   this contract so users can follow the same no-push validation, CI override,
   multi-platform, and attestation review sequence without reading the scripts.

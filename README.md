@@ -21,7 +21,7 @@ archives, or build cache output.
 cp config/image.env.example config/image.env
 CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
 CONFIG_FILE=config/image.env ./scripts/build-image.sh
-PUSH=true CONFIG_FILE=config/image.env ./scripts/push-image.sh
+CONFIG_FILE=config/image.env ./scripts/push-image.sh
 docker buildx bake --file buildx/docker-bake.hcl --print
 ```
 
@@ -46,7 +46,7 @@ revision metadata without editing files.
 | `CONTEXT` | `.` | Build context. Local paths must stay inside the repository. |
 | `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. |
 | `PLATFORMS` | `linux/amd64` | Comma-separated Buildx platform list. |
-| `PUSH` | `false` | Uses `--load` when false and `--push` when true. |
+| `PUSH` | `false` | Uses `--load` when false; registry `--push` must go through `scripts/push-image.sh`. |
 | `SBOM` | `false` | Set to `true` only after reviewing the no-push plan. |
 | `PROVENANCE` | `false` | Supports `true`, `mode=min`, and `mode=max`. |
 | `OCI_*` | example values | Open Containers image label values passed as build arguments. |
@@ -73,10 +73,11 @@ requires `PUSH=false` and checks:
   requested SBOM and provenance settings without pushing an image.
 
 Use `docker buildx bake --file buildx/docker-bake.hcl --print` directly when you
-want to inspect the generated Buildx plan. Use `scripts/build-image.sh` when you
-want to run the build with the configured `--load` or `--push` output behavior.
-Use `scripts/push-image.sh` for CI push jobs; it validates with `PUSH=false`
-first, then exports `PUSH=true` for the build.
+want to inspect the generated Buildx plan. Use `scripts/build-image.sh` for
+validated local `PUSH=false` builds. Direct `PUSH=true` calls to
+`scripts/build-image.sh` are rejected; use `scripts/push-image.sh` for CI push
+jobs because it validates with `PUSH=false` first, then exports `PUSH=true` for
+the build.
 
 For an operator-focused sequence that covers local validation, CI overrides,
 multi-platform publishing, and attestation review, see
@@ -108,6 +109,8 @@ publishing outside the intended registry boundary.
 
 - `No-push validation requires PUSH=false`: run the validator before the push
   path or unset an environment-level `PUSH=true` override.
+- `PUSH=true builds must run through scripts/push-image.sh`: use the push wrapper
+  so registry output cannot bypass no-push validation.
 - `Build context must stay inside repository`: use a repository-local context
   path. Parent-directory and host-level paths are rejected for local contexts.
 - `.dockerignore is missing required pattern`: add the missing exclusion before

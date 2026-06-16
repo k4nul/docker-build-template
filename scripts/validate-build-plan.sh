@@ -209,7 +209,8 @@ require_build_contract_guidance() {
     "PROVENANCE=mode=min" \
     "PROVENANCE=mode=max" \
     "attestation publishing" \
-    "private image names"
+    "private image names" \
+    "Direct \`scripts/build-image.sh\` calls with \`PUSH=true\` are rejected"
   do
     require_file_contains docs/build-contract.md "$required_guidance"
   done
