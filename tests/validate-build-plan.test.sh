@@ -198,8 +198,10 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 0
-  assert_output_contains "No-push build plan validation passed for registry.example.com/team/validated-app:1.2.3"
-  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_output_contains \
+    "No-push build plan validation passed for registry.example.com/team/validated-app:1.2.3"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   assert_file_contains "$FIXTURE_DIR/docker.log" "REGISTRY=registry.example.com/team/"
   assert_file_contains "$FIXTURE_DIR/docker.log" "IMAGE_NAME=validated-app"
   assert_file_contains "$FIXTURE_DIR/docker.log" "IMAGE_TAG=1.2.3"
@@ -226,7 +228,8 @@ EOF
   assert_status 0
   assert_file_contains "$FIXTURE_DIR/docker.log" "SBOM=true"
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=mode=min"
-  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   pass "attestation controls are exported into the no-push bake plan"
 }
 
@@ -296,14 +299,16 @@ EOF
 
   assert_status 0
   assert_file_contains "$FIXTURE_DIR/docker.log" "DOCKERFILE=docker/Dockerfile.multistage"
-  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   pass "multistage template satisfies required OCI label validation"
 }
 
 test_latest_base_image_default_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "latest-base-image"
-  sed 's/alpine:3.20/alpine:latest/' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  sed 's/alpine:3.20/alpine:latest/' "$FIXTURE_DIR/docker/Dockerfile" \
+    > "$FIXTURE_DIR/docker/Dockerfile.tmp"
   mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
 
   cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
@@ -313,7 +318,8 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 2
-  assert_output_contains "Dockerfile must not use latest for base image default: RUNTIME_IMAGE=alpine:latest"
+  assert_output_contains \
+    "Dockerfile must not use latest for base image default: RUNTIME_IMAGE=alpine:latest"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "latest base image defaults are rejected before docker buildx bake"
 }
@@ -321,7 +327,8 @@ EOF
 test_untagged_base_image_default_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "untagged-base-image"
-  sed 's/alpine:3.20/alpine/' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  sed 's/alpine:3.20/alpine/' "$FIXTURE_DIR/docker/Dockerfile" \
+    > "$FIXTURE_DIR/docker/Dockerfile.tmp"
   mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
 
   cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
@@ -331,7 +338,8 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 2
-  assert_output_contains "Dockerfile base image default must include an explicit tag or digest: RUNTIME_IMAGE=alpine"
+  assert_output_contains \
+    "Dockerfile base image default must include an explicit tag or digest: RUNTIME_IMAGE=alpine"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "untagged base image defaults are rejected before docker buildx bake"
 }
@@ -437,7 +445,8 @@ EOF
 test_required_oci_label_bindings_are_enforced() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "oci-labels"
-  grep -Fv -- 'org.opencontainers.image.source="${OCI_SOURCE}"' "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  grep -Fv -- 'org.opencontainers.image.source="${OCI_SOURCE}"' \
+    "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
   mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
 
   cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
@@ -447,7 +456,10 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 2
-  assert_output_contains 'Dockerfile is missing required OCI label binding: org.opencontainers.image.source="${OCI_SOURCE}"'
+  expected_output='Dockerfile is missing required OCI label binding: '
+  expected_output="${expected_output}"'org.opencontainers.image.source="${OCI_SOURCE}"'
+  assert_output_contains \
+    "$expected_output"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "required OCI label bindings are enforced before docker buildx bake"
 }
@@ -464,7 +476,8 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 2
-  assert_output_contains "docs/build-contract.md is required before validating supply-chain build guidance"
+  assert_output_contains \
+    "docs/build-contract.md is required before validating supply-chain build guidance"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "build contract guidance is required before docker buildx bake"
 }
@@ -472,7 +485,8 @@ EOF
 test_build_contract_security_guidance_is_enforced() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "build-contract-guidance"
-  grep -Fv -- "BuildKit secret" "$FIXTURE_DIR/docs/build-contract.md" > "$FIXTURE_DIR/docs/build-contract.md.tmp"
+  grep -Fv -- "BuildKit secret" "$FIXTURE_DIR/docs/build-contract.md" \
+    > "$FIXTURE_DIR/docs/build-contract.md.tmp"
   mv "$FIXTURE_DIR/docs/build-contract.md.tmp" "$FIXTURE_DIR/docs/build-contract.md"
 
   cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
@@ -482,7 +496,8 @@ EOF
   run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
 
   assert_status 2
-  assert_output_contains "docs/build-contract.md is missing required security guidance: BuildKit secret"
+  assert_output_contains \
+    "docs/build-contract.md is missing required security guidance: BuildKit secret"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "build contract security guidance is enforced before docker buildx bake"
 }
@@ -501,7 +516,8 @@ EOF
   assert_status 0
   assert_output_contains "No-push build plan validation passed for example-app:0.1.0"
   assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=https://github.com/example/app.git"
-  assert_file_contains "$FIXTURE_DIR/docker.log" "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   pass "remote contexts skip local directory checks and still print the bake plan"
 }
 

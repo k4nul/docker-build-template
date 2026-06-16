@@ -109,7 +109,9 @@ require_dockerfile_base_image_defaults() {
 
     case "$base_image_value" in
       *:latest|*:latest@*)
-        printf '%s\n' "Dockerfile must not use latest for base image default: $base_image_name=$base_image_value" >&2
+        printf '%s%s=%s\n' \
+          "Dockerfile must not use latest for base image default: " \
+          "$base_image_name" "$base_image_value" >&2
         exit 2
         ;;
     esac
@@ -117,7 +119,9 @@ require_dockerfile_base_image_defaults() {
     case "$base_image_value" in
       *@sha256:*|*:*) ;;
       *)
-        printf '%s\n' "Dockerfile base image default must include an explicit tag or digest: $base_image_name=$base_image_value" >&2
+        printf '%s%s=%s\n' \
+          "Dockerfile base image default must include an explicit tag or digest: " \
+          "$base_image_name" "$base_image_value" >&2
         exit 2
         ;;
     esac
@@ -180,7 +184,8 @@ require_context_hygiene_contract() {
 
 require_build_contract_guidance() {
   if [ ! -f docs/build-contract.md ]; then
-    printf '%s\n' "docs/build-contract.md is required before validating supply-chain build guidance" >&2
+    printf '%s\n' \
+      "docs/build-contract.md is required before validating supply-chain build guidance" >&2
     exit 2
   fi
 

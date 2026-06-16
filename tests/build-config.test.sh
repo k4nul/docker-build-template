@@ -80,7 +80,12 @@ print_loaded_settings() {
 print_exported_settings() {
   load_image_build_settings
   export_image_build_settings
-  env | grep -E "^(REGISTRY|IMAGE_NAME|IMAGE_TAG|CONTEXT|DOCKERFILE|PLATFORMS|PUSH|SBOM|PROVENANCE|OCI_TITLE|OCI_DESCRIPTION|OCI_SOURCE|OCI_REVISION|OCI_LICENSES)=" | sort
+  exported_settings_pattern="^(REGISTRY|IMAGE_NAME|IMAGE_TAG|CONTEXT|DOCKERFILE|"
+  exported_settings_pattern="${exported_settings_pattern}PLATFORMS|PUSH|SBOM|"
+  exported_settings_pattern="${exported_settings_pattern}PROVENANCE|OCI_TITLE|"
+  exported_settings_pattern="${exported_settings_pattern}OCI_DESCRIPTION|OCI_SOURCE|"
+  exported_settings_pattern="${exported_settings_pattern}OCI_REVISION|OCI_LICENSES)="
+  env | grep -E "$exported_settings_pattern" | sort
 }
 
 test_defaults_are_applied_when_no_config_file_is_forced() {
