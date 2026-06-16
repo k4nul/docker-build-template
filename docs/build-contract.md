@@ -12,6 +12,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Default output: local loaded image when `PUSH=false` and `PLATFORMS` names a
   single platform
 - Registry output: pushed image when `PUSH=true` through the validated push wrapper
+- Bake plan output: cache-only output when `PUSH=false`; registry output is
+  rendered only when `PUSH=true`
 - Multi-platform behavior: validate with `PLATFORMS=linux/amd64,linux/arm64`
   and `PUSH=false`, then use `scripts/push-image.sh` for registry output. The
   push wrapper sets `PUSH=true` internally after validation.
@@ -30,7 +32,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required OCI metadata argument/label bindings, required `.dockerignore`
   entries, public-safe image reference and OCI metadata values, attestation
-  controls, and the Buildx bake plan without pushing.
+  controls, explicit cache-only Bake output while `PUSH=false`, and the Buildx
+  bake plan without pushing.
   Local context and Dockerfile paths stay inside the repository, so
   parent-directory or host-level paths are rejected before a registry push.
   Remote contexts such as URL or `git@` contexts are allowed by the local path

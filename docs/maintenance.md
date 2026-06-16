@@ -56,6 +56,9 @@ fast shell tests and real Docker Buildx validation, see
    docker buildx bake --file buildx/docker-bake.hcl --print
    ```
 
+   A no-push Bake plan should render cache-only output. Registry output should
+   appear only after the push wrapper switches to `PUSH=true`.
+
 6. Build locally only after validation passes:
 
    ```bash
@@ -84,9 +87,11 @@ Keep `PUSH=false` in the project config for validation. `scripts/push-image.sh`
 forces `PUSH=false` for
 `scripts/validate-build-plan.sh`, then exports `PUSH=true` before running the
 shared build command. Keep that order when adapting the template so the registry
-push path cannot bypass no-push validation. Direct `scripts/build-image.sh`
-calls with `PUSH=true` are rejected; `PUSH=true` is an internal push-wrapper
-phase, not the value to use for standalone validation.
+push path cannot bypass no-push validation. The Bake target also keeps
+`PUSH=false` plans cache-only and renders registry output only when `PUSH=true`.
+Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected; `PUSH=true`
+is an internal push-wrapper phase, not the value to use for standalone
+validation.
 
 ## Multi-Platform Publishing
 
@@ -157,6 +162,7 @@ manual review items before publishing outside the intended registry boundary.
 - `CONTEXT` and `DOCKERFILE` stay inside the repository for local contexts.
   Remote URL or `git@` contexts are reviewed separately because the local path
   check and local `.dockerignore` cannot prove remote context hygiene.
+- The no-push Bake plan renders `output=type=cacheonly`, not registry output.
 - Base image `*_IMAGE` defaults use explicit tags or digests, not `latest`.
 - `.dockerignore` keeps local config, credentials, caches, and generated output
   out of the build context.

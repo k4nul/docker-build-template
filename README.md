@@ -78,17 +78,20 @@ requires `PUSH=false` and checks:
   generated outputs, and image archives from the build context.
 - `docs/build-contract.md` contains the supply-chain guidance enforced by the
   template.
-- `docker buildx bake --file buildx/docker-bake.hcl --print` matches the
-  requested SBOM and provenance settings without pushing an image.
+- `docker buildx bake --file buildx/docker-bake.hcl --print` renders
+  cache-only output while `PUSH=false` and matches the requested SBOM and
+  provenance settings without pushing an image.
 
 Use `scripts/validate-build-plan.sh` when you need a config-aware rendered
 Buildx plan check. A direct
 `docker buildx bake --file buildx/docker-bake.hcl --print` command does not read
 `CONFIG_FILE`; it uses Buildx defaults plus any exported variables in the
-environment. Use `scripts/build-image.sh` for validated local `PUSH=false`
-builds. Direct `PUSH=true` calls to `scripts/build-image.sh` are rejected; use
-`scripts/push-image.sh` for CI push jobs because it validates with `PUSH=false`
-first, then exports `PUSH=true` internally for the build.
+environment. The Bake target renders `output=type=cacheonly` while `PUSH=false`
+and `output=type=registry` only when `PUSH=true`. Use `scripts/build-image.sh`
+for validated local `PUSH=false` builds. Direct `PUSH=true` calls to
+`scripts/build-image.sh` are rejected; use `scripts/push-image.sh` for CI push
+jobs because it validates with `PUSH=false` first, then exports `PUSH=true`
+internally for the build.
 
 For an operator-focused sequence that covers local validation, CI overrides,
 multi-platform publishing, and attestation review, see

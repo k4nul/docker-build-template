@@ -91,13 +91,19 @@ if [ "$#" -eq 5 ] &&
   [ "$5" = "--print" ]; then
   if [ "${IMAGE_NAME-}" = "missing-sbom-app" ]; then
     printf '{\n'
-    printf '  "target": {"default": {"attest": []}}\n'
+    printf '  "target": {"default": {"attest": [], "output": [{"type": "cacheonly"}]}}\n'
     printf '}\n'
     exit 0
   fi
   if [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
     printf '{\n'
-    printf '  "target": {"default": {"attest": [{"type": "provenance"}]}}\n'
+    printf '  "target": {"default": {"attest": [{"type": "provenance"}], "output": [{"type": "cacheonly"}]}}\n'
+    printf '}\n'
+    exit 0
+  fi
+  if [ "${IMAGE_NAME-}" = "missing-output-app" ]; then
+    printf '{\n'
+    printf '  "target": {"default": {"attest": []}}\n'
     printf '}\n'
     exit 0
   fi
@@ -125,6 +131,7 @@ if [ "$#" -eq 5 ] &&
   else
     printf '      "attest": []\n'
   fi
+  printf '      ,"output": [{"type": "cacheonly"}]\n'
   printf '    }\n'
   printf '  }\n'
   printf '}\n'
@@ -211,6 +218,22 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_TITLE=Validated App"
   pass "no-push validation exports settings and prints the bake plan"
+}
+
+test_no_push_bake_plan_requires_cache_only_output() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "missing-output"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=missing-output-app
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan is missing explicit no-push output"
+  pass "no-push validation requires an explicit cache-only bake output"
 }
 
 test_attestation_controls_are_visible_in_no_push_bake_plan() {
@@ -558,6 +581,7 @@ EOF
 
 install_docker_stub
 test_success_uses_no_push_bake_plan
+test_no_push_bake_plan_requires_cache_only_output
 test_attestation_controls_are_visible_in_no_push_bake_plan
 test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected

@@ -288,6 +288,18 @@ require_bake_plan_attestation_controls() {
     return 1
   fi
 
+  require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+    '"output": [' \
+    "Buildx bake plan is missing explicit no-push output"
+
+  require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+    '"type": "cacheonly"' \
+    "Buildx bake plan must use cache-only output while PUSH=false"
+
+  require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \
+    '"type": "registry"' \
+    "Buildx bake plan enables registry output while PUSH=false"
+
   if [ "$SBOM" = "false" ]; then
     require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \
       '"type": "sbom"' \

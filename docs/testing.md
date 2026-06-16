@@ -65,12 +65,13 @@ exported in the environment.
 
 The validator must run with `PUSH=false`. It exports the loaded image settings
 into the Buildx bake environment and checks that the printed plan matches the
-requested `SBOM` and `PROVENANCE` controls without building or pushing an image.
-It also performs local checks before Docker is called, including supported config
-keys, URL userinfo and common token or private-key markers in public build
-values, repository-bound local context and Dockerfile paths, explicit base image
-tags or digests, Dockerfile OCI metadata bindings, required `.dockerignore`
-patterns, and required build-contract guidance.
+requested `SBOM` and `PROVENANCE` controls with cache-only output while
+`PUSH=false`, without building or pushing an image. It also performs local
+checks before Docker is called, including supported config keys, URL userinfo
+and common token or private-key markers in public build values,
+repository-bound local context and Dockerfile paths, explicit base image tags or
+digests, Dockerfile OCI metadata bindings, required `.dockerignore` patterns,
+and required build-contract guidance.
 
 Remote contexts such as URL or `git@` contexts skip the local directory check.
 Treat them as a separate review item: local `.dockerignore` validation proves
@@ -119,6 +120,8 @@ rejected so registry output cannot bypass no-push validation.
 - `Buildx bake plan enables ... while ...=false`: inspect environment overrides
   as well as `config/image.env`; environment values take precedence over the
   config file.
+- `Buildx bake plan is missing explicit no-push output`: restore the Bake target
+  output contract so `PUSH=false` renders cache-only output.
 - `docs/build-contract.md is required`: restore the build contract before
   validating a public supply-chain build plan.
 - `docs/build-contract.md is missing required security guidance`: restore the

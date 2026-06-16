@@ -114,7 +114,7 @@ if [ "$#" -eq 5 ] &&
   [ "$5" = "--print" ]; then
   if [ "${IMAGE_NAME-}" = "push-missing-sbom-app" ]; then
     printf '{\n'
-    printf '  "target": {"default": {"attest": []}}\n'
+    printf '  "target": {"default": {"attest": [], "output": [{"type": "cacheonly"}]}}\n'
     printf '}\n'
     exit 0
   fi
@@ -142,6 +142,7 @@ if [ "$#" -eq 5 ] &&
   else
     printf '      "attest": []\n'
   fi
+  printf '      ,"output": [{"type": "cacheonly"}]\n'
   printf '    }\n'
   printf '  }\n'
   printf '}\n'

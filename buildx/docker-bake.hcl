@@ -22,6 +22,10 @@ variable "PLATFORMS" {
   default = "linux/amd64"
 }
 
+variable "PUSH" {
+  default = "false"
+}
+
 variable "SBOM" {
   default = "false"
 }
@@ -55,6 +59,7 @@ target "default" {
   dockerfile = DOCKERFILE
   tags       = ["${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"]
   platforms  = split(",", PLATFORMS)
+  output     = PUSH == "true" ? ["type=registry"] : ["type=cacheonly"]
   attest = concat(
     SBOM == "false" ? [] : ["type=sbom"],
     PROVENANCE == "false" ? [] : [PROVENANCE == "true" ? "type=provenance" : "type=provenance,${PROVENANCE}"]
