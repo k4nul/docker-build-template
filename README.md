@@ -22,7 +22,7 @@ cp config/image.env.example config/image.env
 CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
 CONFIG_FILE=config/image.env ./scripts/build-image.sh
 CONFIG_FILE=config/image.env ./scripts/push-image.sh # after registry login
-docker buildx bake --file buildx/docker-bake.hcl --print
+docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported env only
 ```
 
 Edit `config/image.env` for the target registry, image name, tag, context,
@@ -43,7 +43,7 @@ revision metadata without editing files.
 | `REGISTRY` | empty | Optional registry prefix, such as `ghcr.io/acme/`. |
 | `IMAGE_NAME` | `example-app` | Image repository name. |
 | `IMAGE_TAG` | `0.1.0` | Image tag. |
-| `CONTEXT` | `.` | Build context. Local paths must stay inside the repository. |
+| `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must be reviewed separately. |
 | `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. |
 | `PLATFORMS` | `linux/amd64` | Comma-separated Buildx platform list. |
 | `PUSH` | `false` | Uses `--load` when false; registry `--push` must go through `scripts/push-image.sh`. |
@@ -56,7 +56,9 @@ store registry credentials in `config/image.env`; authenticate with the registry
 through the Docker client or CI secret store before running a push job. Values
 that flow into image references, build arguments, or OCI labels are public build
 metadata; validation rejects URL userinfo and common token or private-key
-markers before Docker is called.
+markers before Docker is called. Private registry names, internal paths, and
+overly specific source metadata still require human review before publishing
+outside the intended registry boundary.
 
 ## Validation Flow
 
@@ -66,7 +68,9 @@ requires `PUSH=false` and checks:
 - config shape and supported values.
 - image reference and OCI metadata values do not include URL userinfo or
   obvious credential material.
-- local build context and Dockerfile paths stay inside the repository.
+- local build context and Dockerfile paths stay inside the repository. Remote
+  contexts such as URL or `git@` contexts skip the local directory check and
+  need separate source and context-hygiene review.
 - Dockerfile base image defaults use explicit tags or digests instead of
   `latest`.
 - Dockerfile OCI metadata arguments are bound to OCI labels.
@@ -77,16 +81,20 @@ requires `PUSH=false` and checks:
 - `docker buildx bake --file buildx/docker-bake.hcl --print` matches the
   requested SBOM and provenance settings without pushing an image.
 
-Use `docker buildx bake --file buildx/docker-bake.hcl --print` directly when you
-want to inspect the generated Buildx plan. Use `scripts/build-image.sh` for
-validated local `PUSH=false` builds. Direct `PUSH=true` calls to
-`scripts/build-image.sh` are rejected; use `scripts/push-image.sh` for CI push
-jobs because it validates with `PUSH=false` first, then exports `PUSH=true` for
-the build.
+Use `scripts/validate-build-plan.sh` when you need a config-aware rendered
+Buildx plan check. A direct
+`docker buildx bake --file buildx/docker-bake.hcl --print` command does not read
+`CONFIG_FILE`; it uses Buildx defaults plus any exported variables in the
+environment. Use `scripts/build-image.sh` for validated local `PUSH=false`
+builds. Direct `PUSH=true` calls to `scripts/build-image.sh` are rejected; use
+`scripts/push-image.sh` for CI push jobs because it validates with `PUSH=false`
+first, then exports `PUSH=true` internally for the build.
 
 For an operator-focused sequence that covers local validation, CI overrides,
 multi-platform publishing, and attestation review, see
-[docs/maintenance.md](docs/maintenance.md).
+[docs/maintenance.md](docs/maintenance.md). For the template test suite, Docker
+stubs, and real Buildx validation boundaries, see
+[docs/testing.md](docs/testing.md).
 
 ## Multi-Platform Builds
 
@@ -112,7 +120,10 @@ Keep `SBOM=false` and `PROVENANCE=false` until a no-push plan has been reviewed.
 When enabling attestations, prefer `PROVENANCE=mode=min` before
 `PROVENANCE=mode=max`, then review generated metadata for private image names,
 internal paths, source URLs, revision values, and registry details before
-publishing outside the intended registry boundary.
+publishing outside the intended registry boundary. The validator catches URL
+userinfo and common token or private-key markers; reviewers must still check for
+private registry names, internal paths, and source metadata that should not be
+shared beyond the intended registry boundary.
 
 ## Troubleshooting
 
@@ -141,4 +152,5 @@ publishing outside the intended registry boundary.
 
 See [docs/build-contract.md](docs/build-contract.md) for the full build contract
 and supply-chain guidance. See [docs/maintenance.md](docs/maintenance.md) for a
-step-by-step maintenance runbook.
+step-by-step maintenance runbook, and [docs/testing.md](docs/testing.md) for the
+validation and test guide.

@@ -5,6 +5,10 @@ change, or wiring the scripts into CI. It is intentionally centered on no-push
 validation first: registry pushes, SBOMs, and provenance attestations should be
 enabled only after the local build plan is visible and reviewed.
 
+For the template test suite, Docker-stubbed checks, and the boundary between
+fast shell tests and real Docker Buildx validation, see
+[docs/testing.md](testing.md).
+
 ## Local Validation Sequence
 
 1. Copy the example configuration and edit only project-specific values:
@@ -38,10 +42,18 @@ enabled only after the local build plan is visible and reviewed.
    ```
 
 5. Inspect the rendered Buildx plan when reviewing attestation or platform
-   changes:
+   changes. Prefer the validator for config-aware review because it loads
+   `CONFIG_FILE` and exports settings before calling Bake. A direct Bake command
+   reads Buildx defaults plus exported environment variables, not
+   `config/image.env` by itself:
 
    ```bash
-   CONFIG_FILE=config/image.env docker buildx bake --file buildx/docker-bake.hcl --print
+   CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+   REGISTRY=registry.example.com/team/ \
+   IMAGE_NAME=my-app \
+   IMAGE_TAG=0.1.0 \
+   PLATFORMS=linux/amd64,linux/arm64 \
+   docker buildx bake --file buildx/docker-bake.hcl --print
    ```
 
 6. Build locally only after validation passes:
@@ -68,11 +80,13 @@ OCI_REVISION="$CI_COMMIT_SHA" \
 ./scripts/push-image.sh
 ```
 
-`scripts/push-image.sh` forces `PUSH=false` for
+Keep `PUSH=false` in the project config for validation. `scripts/push-image.sh`
+forces `PUSH=false` for
 `scripts/validate-build-plan.sh`, then exports `PUSH=true` before running the
 shared build command. Keep that order when adapting the template so the registry
 push path cannot bypass no-push validation. Direct `scripts/build-image.sh`
-calls with `PUSH=true` are rejected.
+calls with `PUSH=true` are rejected; `PUSH=true` is an internal push-wrapper
+phase, not the value to use for standalone validation.
 
 ## Multi-Platform Publishing
 
@@ -90,7 +104,7 @@ Use comma-separated platforms for registry publishing:
 
 ```text
 PLATFORMS=linux/amd64,linux/arm64
-PUSH=true
+PUSH=false
 ```
 
 Buildx multi-platform output is intended for registry pushes. Validate the plan
@@ -117,6 +131,8 @@ PROVENANCE=mode=min
 Prefer `PROVENANCE=mode=min` before `PROVENANCE=mode=max`. Before publishing
 outside the intended registry boundary, review generated metadata for private
 image names, internal paths, source URLs, revision values, and registry details.
+The validator rejects URL userinfo and common token or private-key markers, but
+private registry names and internal paths are human-review items.
 
 ## Build Context And Secret Handling
 
@@ -129,7 +145,8 @@ If a project-specific build needs a short-lived package token or private key,
 use BuildKit secret mounts in that project adaptation. Do not pass secrets
 through build arguments, OCI labels, or files copied by the Dockerfile. Public
 image identity and OCI metadata values must not include URL userinfo, token-like
-strings, private keys, private registry names, or internal paths.
+strings, or private keys. Treat private registry names and internal paths as
+manual review items before publishing outside the intended registry boundary.
 
 ## Review Checklist
 
@@ -138,10 +155,13 @@ strings, private keys, private registry names, or internal paths.
 - `REGISTRY`, `IMAGE_NAME`, and `IMAGE_TAG` produce the intended image
   reference.
 - `CONTEXT` and `DOCKERFILE` stay inside the repository for local contexts.
+  Remote URL or `git@` contexts are reviewed separately because the local path
+  check and local `.dockerignore` cannot prove remote context hygiene.
 - Base image `*_IMAGE` defaults use explicit tags or digests, not `latest`.
 - `.dockerignore` keeps local config, credentials, caches, and generated output
   out of the build context.
 - `OCI_SOURCE` is a public source URL and `OCI_REVISION` is the CI commit SHA.
 - Public image identity and OCI metadata values do not include URL userinfo,
-  token-like strings, private keys, private registry names, or internal paths.
+  token-like strings, or private keys, and manual review has cleared any private
+  registry names or internal paths.
 - `SBOM` and `PROVENANCE` settings match the reviewed Buildx plan.

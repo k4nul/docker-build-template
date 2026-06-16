@@ -12,7 +12,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Default output: local loaded image when `PUSH=false` and `PLATFORMS` names a
   single platform
 - Registry output: pushed image when `PUSH=true` through the validated push wrapper
-- Multi-platform behavior: use `PLATFORMS=linux/amd64,linux/arm64` with `PUSH=true`
+- Multi-platform behavior: validate with `PLATFORMS=linux/amd64,linux/arm64`
+  and `PUSH=false`, then use `scripts/push-image.sh` for registry output. The
+  push wrapper sets `PUSH=true` internally after validation.
 - Attestation defaults: `SBOM=false` and `PROVENANCE=false` keep generated
   metadata disabled until a project explicitly opts in after no-push plan
   validation.
@@ -29,8 +31,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   required OCI metadata argument/label bindings, required `.dockerignore`
   entries, public-safe image reference and OCI metadata values, attestation
   controls, and the Buildx bake plan without pushing.
-  The context and Dockerfile paths stay inside the repository, so
+  Local context and Dockerfile paths stay inside the repository, so
   parent-directory or host-level paths are rejected before a registry push.
+  Remote contexts such as URL or `git@` contexts are allowed by the local path
+  gate and require separate source and context-hygiene review.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
   Keep this sequence when adapting the template to CI.
@@ -64,8 +68,11 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   plan has been reviewed. Use `SBOM=true` to include an SBOM attestation and
   prefer `PROVENANCE=mode=min` before `PROVENANCE=mode=max`. Review generated
   metadata before attestation publishing, including private image names,
-  internal paths, source URLs, revision values, and registry details. Do not
-  share attestations outside the intended registry boundary before that review.
+  internal paths, source URLs, revision values, and registry details. The
+  validator rejects URL userinfo and common token or private-key markers in
+  public build values; private registry names and internal paths are manual
+  review concerns. Do not share attestations outside the intended registry
+  boundary before that review.
 
 ## Review Checklist
 
@@ -79,4 +86,6 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit
   data before registry publishing.
 - Confirm image identity and OCI metadata values do not contain URL userinfo,
-  package tokens, private keys, private registry names, or internal paths.
+  package tokens, or private keys.
+- Confirm manual review has cleared private registry names, internal paths, and
+  source metadata before publishing attestations outside the intended boundary.

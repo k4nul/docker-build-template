@@ -11,11 +11,13 @@ bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scr
 bash tests/build-config.test.sh
 bash tests/build-image.test.sh
 bash tests/validate-build-plan.test.sh
-docker buildx bake --file buildx/docker-bake.hcl --print
+docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported env only
 ```
 
 To test an actual image build, use a local or disposable registry target and
 keep `PUSH=false` unless the change explicitly concerns publishing.
+For config-aware Buildx plan validation, use `CONFIG_FILE=... ./scripts/validate-build-plan.sh`;
+direct Bake commands do not read `CONFIG_FILE`.
 
 ## Pull Request Checklist
 
