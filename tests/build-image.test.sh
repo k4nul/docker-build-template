@@ -47,6 +47,26 @@ assert_log_empty() {
   fi
 }
 
+assert_log_order() {
+  first_output=$1
+  second_output=$2
+
+  first_line=$(grep -n -F -- "$first_output" "$DOCKER_STUB_LOG" | head -n 1 | cut -d: -f1 || true)
+  second_line=$(grep -n -F -- "$second_output" "$DOCKER_STUB_LOG" | head -n 1 | cut -d: -f1 || true)
+
+  if [ -z "$first_line" ]; then
+    fail "expected docker log to contain first ordered entry: $first_output"
+  fi
+
+  if [ -z "$second_line" ]; then
+    fail "expected docker log to contain second ordered entry: $second_output"
+  fi
+
+  if [ "$first_line" -ge "$second_line" ]; then
+    fail "expected '$first_output' to appear before '$second_output'"
+  fi
+}
+
 assert_build_status() {
   expected_status=$1
   if [ "$BUILD_STATUS" -ne "$expected_status" ]; then
@@ -77,6 +97,7 @@ set -eu
   done
   printf '\n'
   printf 'pwd: <%s>\n' "$(pwd)"
+  printf 'PUSH: <%s>\n' "${PUSH-}"
 } >> "$DOCKER_STUB_LOG"
 
 if [ "$#" -ge 3 ] &&
@@ -91,6 +112,12 @@ if [ "$#" -eq 5 ] &&
   [ "$3" = "--file" ] &&
   [ "$4" = "buildx/docker-bake.hcl" ] &&
   [ "$5" = "--print" ]; then
+  if [ "${IMAGE_NAME-}" = "push-missing-sbom-app" ]; then
+    printf '{\n'
+    printf '  "target": {"default": {"attest": []}}\n'
+    printf '}\n'
+    exit 0
+  fi
   printf '{\n'
   printf '  "target": {\n'
   printf '    "default": {\n'
@@ -193,6 +220,20 @@ run_build_script_from_dir() {
   )
 }
 
+run_push_script_with_push_override() {
+  fixture_dir=$1
+  script_path=$2
+  config_file=$3
+  DOCKER_STUB_LOG="$fixture_dir/docker.log"
+  export DOCKER_STUB_LOG
+  : > "$DOCKER_STUB_LOG"
+
+  (
+    cd "$fixture_dir"
+    PATH="$STUB_DIR:$PATH" CONFIG_FILE="$config_file" PUSH=true "$script_path"
+  )
+}
+
 test_default_build_loads_without_attestations() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "default-build"
@@ -254,6 +295,10 @@ EOF
 
   assert_log_contains "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   assert_log_contains "args: <buildx> <build>"
+  assert_log_order \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>" \
+    "args: <buildx> <build>"
+  assert_log_order "PUSH: <false>" "PUSH: <true>"
   assert_log_contains "<--tag> <registry.example.com/team/push-app:3.0.0>"
   assert_log_contains "<--provenance> <mode=max>"
   assert_log_contains "<--push> <.>"
@@ -286,6 +331,102 @@ EOF
   assert_log_contains "<--tag> <registry.example.com/team/outside-cwd-app:3.1.0>"
   assert_log_contains "<--push> <.>"
   pass "push wrapper validates and builds from the repository root when called elsewhere"
+}
+
+test_push_script_forces_no_push_validation_with_push_environment() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "push-env-override"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=env-push-app
+IMAGE_TAG=3.2.0
+PUSH=false
+EOF
+
+  run_push_script_with_push_override \
+    "$FIXTURE_DIR" \
+    ./scripts/push-image.sh \
+    "$FIXTURE_DIR/config/test.env"
+
+  assert_log_order \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>" \
+    "args: <buildx> <build>"
+  assert_log_order "PUSH: <false>" "PUSH: <true>"
+  assert_log_contains "<--tag> <registry.example.com/team/env-push-app:3.2.0>"
+  assert_log_contains "<--push> <.>"
+  assert_log_not_contains "<--load>"
+  pass "push wrapper validates in no-push mode even when the environment starts with PUSH=true"
+}
+
+test_push_script_forces_no_push_validation_with_push_config() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "push-config-override"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=config-push-app
+IMAGE_TAG=3.2.1
+PLATFORMS=linux/amd64,linux/arm64
+PUSH=true
+EOF
+
+  run_build_script "$FIXTURE_DIR" ./scripts/push-image.sh "$FIXTURE_DIR/config/test.env"
+
+  assert_log_order \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>" \
+    "args: <buildx> <build>"
+  assert_log_order "PUSH: <false>" "PUSH: <true>"
+  assert_log_contains "<--platform> <linux/amd64,linux/arm64>"
+  assert_log_contains "<--tag> <registry.example.com/team/config-push-app:3.2.1>"
+  assert_log_contains "<--push> <.>"
+  assert_log_not_contains "<--load>"
+  pass "push wrapper validates in no-push mode even when config requests a multi-platform push"
+}
+
+test_push_script_stops_before_push_when_validation_fails() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "push-validation-failure"
+  rm "$FIXTURE_DIR/docs/build-contract.md"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=blocked-push-app
+IMAGE_TAG=3.3.0
+PUSH=false
+EOF
+
+  run_build_script_probe "$FIXTURE_DIR" ./scripts/push-image.sh "$FIXTURE_DIR/config/test.env"
+
+  assert_build_status 2
+  assert_build_output_contains \
+    "docs/build-contract.md is required before validating supply-chain build guidance"
+  assert_log_empty
+  pass "push wrapper stops before docker calls when no-push validation fails"
+}
+
+test_push_script_stops_after_bake_plan_validation_fails() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "push-bake-validation-failure"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=push-missing-sbom-app
+IMAGE_TAG=3.4.0
+PUSH=false
+SBOM=true
+PROVENANCE=false
+EOF
+
+  run_build_script_probe "$FIXTURE_DIR" ./scripts/push-image.sh "$FIXTURE_DIR/config/test.env"
+
+  assert_build_status 2
+  assert_build_output_contains "Buildx bake plan is missing SBOM attestation while SBOM=true"
+  assert_log_contains "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  assert_log_contains "PUSH: <false>"
+  assert_log_not_contains "args: <buildx> <build>"
+  assert_log_not_contains "PUSH: <true>"
+  pass "push wrapper stops before registry build when bake-plan validation fails"
 }
 
 test_direct_push_requires_validated_wrapper() {
@@ -332,6 +473,10 @@ test_default_build_loads_without_attestations
 test_attestation_controls_are_forwarded_to_buildx
 test_push_script_forces_registry_output
 test_push_script_builds_from_repo_root_when_called_elsewhere
+test_push_script_forces_no_push_validation_with_push_environment
+test_push_script_forces_no_push_validation_with_push_config
+test_push_script_stops_before_push_when_validation_fails
+test_push_script_stops_after_bake_plan_validation_fails
 test_direct_push_requires_validated_wrapper
 test_multi_platform_local_load_is_rejected
 
