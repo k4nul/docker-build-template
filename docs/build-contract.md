@@ -25,6 +25,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
   revision value from CI.
+- Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
+  reflect `CONFIG_FILE`. Direct Bake prints use defaults plus exported
+  variables only, so unexported context, Dockerfile, attestation, and OCI
+  metadata values fall back to `buildx/docker-bake.hcl`.
 
 ## Required Validation
 

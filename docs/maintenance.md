@@ -9,6 +9,9 @@ For the template test suite, Docker-stubbed checks, and the boundary between
 fast shell tests and real Docker Buildx validation, see
 [docs/testing.md](testing.md).
 
+For first-time project adoption, config precedence, and the CI handoff sequence,
+see [docs/onboarding.md](onboarding.md).
+
 ## Local Validation Sequence
 
 1. Copy the example configuration and edit only project-specific values:
@@ -43,21 +46,20 @@ fast shell tests and real Docker Buildx validation, see
 
 5. Inspect the rendered Buildx plan when reviewing attestation or platform
    changes. Prefer the validator for config-aware review because it loads
-   `CONFIG_FILE` and exports settings before calling Bake. A direct Bake command
-   reads Buildx defaults plus exported environment variables, not
-   `config/image.env` by itself:
+   `CONFIG_FILE` and exports the resolved settings before calling Bake:
 
    ```bash
    CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
-   REGISTRY=registry.example.com/team/ \
-   IMAGE_NAME=my-app \
-   IMAGE_TAG=0.1.0 \
-   PLATFORMS=linux/amd64,linux/arm64 \
-   docker buildx bake --file buildx/docker-bake.hcl --print
    ```
 
+   A direct Bake command reads Buildx defaults plus exported environment
+   variables, not `config/image.env` by itself. Use it only for default-template
+   inspection or after exporting every setting relevant to the review, including
+   `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `SBOM`, `PROVENANCE`, and `OCI_*`.
    A no-push Bake plan should render cache-only output. Registry output should
-   appear only after the push wrapper switches to `PUSH=true`.
+   appear in direct Bake output only when `PUSH=true`; the push wrapper's real
+   publish step uses the shared `docker buildx build --push` command after
+   no-push validation passes.
 
 6. Build locally only after validation passes:
 

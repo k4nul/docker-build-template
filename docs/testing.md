@@ -61,7 +61,11 @@ docker buildx bake --file buildx/docker-bake.hcl --print
 
 A direct `docker buildx bake --file buildx/docker-bake.hcl --print` command
 does not read `CONFIG_FILE`; it uses Buildx defaults plus variables already
-exported in the environment.
+exported in the environment. Any unexported variable falls back to
+`buildx/docker-bake.hcl`, including context, Dockerfile, attestation settings,
+and OCI metadata. Use direct Bake output for default-template checks or for
+deliberate review after exporting the full set of variables relevant to the
+plan.
 
 The validator must run with `PUSH=false`. It exports the loaded image settings
 into the Buildx bake environment and checks that the printed plan matches the
@@ -126,3 +130,7 @@ rejected so registry output cannot bypass no-push validation.
   validating a public supply-chain build plan.
 - `docs/build-contract.md is missing required security guidance`: restore the
   required contract wording or update the validator and tests together.
+
+For the first-time adoption path that combines config setup, validation, local
+builds, direct Bake limitations, and CI push handoff, see
+[docs/onboarding.md](onboarding.md).

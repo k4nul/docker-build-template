@@ -31,6 +31,10 @@ Dockerfile, platforms, attestation modes, and OCI image metadata. Keep
 validated. Replace the example `OCI_SOURCE` and `OCI_REVISION` values with the
 public source URL and CI commit SHA before publishing.
 
+For a first-time adoption sequence that explains config precedence, no-push
+validation, direct Bake limitations, local builds, and the CI push handoff, see
+[docs/onboarding.md](docs/onboarding.md).
+
 ## Configuration
 
 `scripts/build-config.sh` loads `CONFIG_FILE` when it is set; otherwise it uses
@@ -88,13 +92,14 @@ Buildx plan check. A direct
 `CONFIG_FILE`; it uses Buildx defaults plus any exported variables in the
 environment. The Bake target renders `output=type=cacheonly` while `PUSH=false`
 and `output=type=registry` only when `PUSH=true`. Use `scripts/build-image.sh`
-for validated local `PUSH=false` builds. Direct `PUSH=true` calls to
+after validation for local `PUSH=false` builds. Direct `PUSH=true` calls to
 `scripts/build-image.sh` are rejected; use `scripts/push-image.sh` for CI push
 jobs because it validates with `PUSH=false` first, then exports `PUSH=true`
-internally for the build.
+internally for the shared `docker buildx build --push` command.
 
-For an operator-focused sequence that covers local validation, CI overrides,
-multi-platform publishing, and attestation review, see
+For onboarding and operator-focused sequences that cover local validation, CI
+overrides, multi-platform publishing, and attestation review, see
+[docs/onboarding.md](docs/onboarding.md) and
 [docs/maintenance.md](docs/maintenance.md). For the template test suite, Docker
 stubs, and real Buildx validation boundaries, see
 [docs/testing.md](docs/testing.md).
