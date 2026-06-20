@@ -317,6 +317,56 @@ EOF
   pass "invalid image tag characters are rejected before building image references"
 }
 
+test_invalid_image_name_characters_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/invalid-image-name.env"
+  output_file="$TEST_ROOT/invalid-image-name.out"
+
+  cat > "$config_file" <<'EOF'
+IMAGE_NAME=Team/App
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains \
+    "IMAGE_NAME must contain only lowercase letters, numbers, periods, underscores, dashes, or slashes"
+  pass "invalid image repository name characters are rejected before building image references"
+}
+
+test_empty_image_name_components_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/empty-image-name-component.env"
+  output_file="$TEST_ROOT/empty-image-name-component.out"
+
+  cat > "$config_file" <<'EOF'
+IMAGE_NAME=team//app
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "IMAGE_NAME must not contain empty slash-separated components"
+  pass "empty image repository name path components are rejected"
+}
+
+test_image_name_component_boundaries_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/image-name-boundary.env"
+  output_file="$TEST_ROOT/image-name-boundary.out"
+
+  cat > "$config_file" <<'EOF'
+IMAGE_NAME=team/-app
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains \
+    "IMAGE_NAME path components must start and end with a lowercase letter or number"
+  pass "image repository name path components must have alphanumeric boundaries"
+}
+
 test_empty_config_values_fall_back_to_defaults() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/empty-values.env"
@@ -377,6 +427,9 @@ test_token_like_config_values_are_rejected
 test_registry_userinfo_prefix_is_rejected
 test_registry_prefix_requires_trailing_slash
 test_invalid_image_tag_values_are_rejected
+test_invalid_image_name_characters_are_rejected
+test_empty_image_name_components_are_rejected
+test_image_name_component_boundaries_are_rejected
 test_empty_config_values_fall_back_to_defaults
 test_missing_explicit_config_file_is_rejected
 test_defaults_remain_valid_when_exported_for_buildx

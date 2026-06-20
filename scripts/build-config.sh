@@ -221,6 +221,33 @@ require_image_tag_value() {
 
 require_image_name_value() {
   require_image_reference_value IMAGE_NAME "$IMAGE_NAME"
+
+  case "$IMAGE_NAME" in
+    *[!a-z0-9._/-]*)
+      printf '%s\n' \
+        "IMAGE_NAME must contain only lowercase letters, numbers, periods, underscores, dashes, or slashes" >&2
+      exit 2
+      ;;
+    /*|*/|*//*)
+      printf '%s\n' "IMAGE_NAME must not contain empty slash-separated components" >&2
+      exit 2
+      ;;
+  esac
+
+  old_ifs=$IFS
+  IFS=/
+  for image_name_component in $IMAGE_NAME; do
+    IFS=$old_ifs
+    case "$image_name_component" in
+      [!a-z0-9]*|*[!a-z0-9])
+        printf '%s\n' \
+          "IMAGE_NAME path components must start and end with a lowercase letter or number" >&2
+        exit 2
+        ;;
+    esac
+    IFS=/
+  done
+  IFS=$old_ifs
 }
 
 require_single_platform_load() {

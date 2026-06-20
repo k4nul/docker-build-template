@@ -27,7 +27,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   revision value from CI.
 - Image reference safety: `REGISTRY` is empty or a slash-terminated Docker image
   prefix such as `ghcr.io/acme/`; it is not a URL and does not contain
-  credential-shaped userinfo. `IMAGE_TAG` uses Docker tag-safe characters.
+  credential-shaped userinfo. `IMAGE_NAME` is a lowercase Docker repository path
+  whose slash-separated components use only letters, numbers, periods,
+  underscores, and dashes, with each component starting and ending with a
+  lowercase letter or number. `IMAGE_TAG` uses Docker tag-safe characters.
 - Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
   reflect `CONFIG_FILE`. Direct Bake prints use defaults plus exported
   variables only, so unexported context, Dockerfile, attestation, and OCI

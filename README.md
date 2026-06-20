@@ -49,7 +49,7 @@ revision metadata without editing files.
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `REGISTRY` | empty | Optional slash-terminated registry prefix, such as `ghcr.io/acme/`. |
-| `IMAGE_NAME` | `example-app` | Image repository name. |
+| `IMAGE_NAME` | `example-app` | Lowercase image repository path, such as `team/example-app`. |
 | `IMAGE_TAG` | `0.1.0` | Image tag. |
 | `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must be reviewed separately. |
 | `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. |
@@ -66,9 +66,12 @@ that flow into image references, build arguments, or OCI labels are public build
 metadata; validation rejects URL userinfo and common token or private-key
 markers before Docker is called. Registry prefixes must not be URLs, must not
 contain credential-shaped userinfo, and must end in `/` when set so the image
-reference cannot silently join the registry namespace and image name. Private
-registry names, internal paths, and overly specific source metadata still
-require human review before publishing outside the intended registry boundary.
+reference cannot silently join the registry namespace and image name. Image
+names must use lowercase Docker repository path components with only letters,
+numbers, periods, underscores, dashes, and slashes, and each path component must
+start and end with a lowercase letter or number. Private registry names,
+internal paths, and overly specific source metadata still require human review
+before publishing outside the intended registry boundary.
 
 ## Validation Flow
 
@@ -166,6 +169,9 @@ beyond the intended registry boundary.
   style registry prefixes and authenticate outside the config file.
 - `REGISTRY must be empty or end with /`: use a real prefix such as
   `ghcr.io/acme/`, or move the namespace into `IMAGE_NAME`.
+- `IMAGE_NAME must contain only lowercase`: use a Docker repository path such
+  as `team/example-app`; uppercase names and empty slash components are rejected
+  before Docker is called.
 - `must not contain credential-like token material`: replace token-looking
   metadata with public-safe values before validating or publishing.
 - `Build context must stay inside repository`: use a repository-local context
