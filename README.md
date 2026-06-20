@@ -75,8 +75,8 @@ requires `PUSH=false` and checks:
 - local build context and Dockerfile paths stay inside the repository. Remote
   contexts such as URL or `git@` contexts skip the local directory check and
   need separate source and context-hygiene review.
-- Dockerfile base image defaults use explicit tags or digests instead of
-  `latest`.
+- selected and repository template Dockerfile base image defaults use explicit
+  tags or digests instead of `latest`.
 - Dockerfile OCI metadata arguments are bound to OCI labels.
 - `.dockerignore` excludes local config, dotenv files, credentials, caches,
   generated outputs, and image archives from the build context.

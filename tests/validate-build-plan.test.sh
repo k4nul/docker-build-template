@@ -384,6 +384,27 @@ EOF
   pass "untagged base image defaults are rejected before docker buildx bake"
 }
 
+test_alternate_template_latest_base_image_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "alternate-template-latest-base-image"
+  sed 's/node:22-alpine/node:latest/' "$FIXTURE_DIR/docker/Dockerfile.multistage" \
+    > "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp" \
+    "$FIXTURE_DIR/docker/Dockerfile.multistage"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains \
+    "Dockerfile must not use latest for base image default: BUILDER_IMAGE=node:latest"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "alternate template base image defaults are rejected before docker buildx bake"
+}
+
 test_push_true_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "push-true"
@@ -731,6 +752,7 @@ test_secret_like_metadata_is_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_latest_base_image_default_is_rejected_before_bake
 test_untagged_base_image_default_is_rejected_before_bake
+test_alternate_template_latest_base_image_is_rejected_before_bake
 test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
 test_parent_context_is_rejected_before_bake

@@ -85,7 +85,8 @@ require_build_paths() {
 }
 
 require_dockerfile_base_image_defaults() {
-  base_image_defaults=$(grep -E '^ARG[[:space:]]+[A-Za-z0-9_]*IMAGE=' "$DOCKERFILE" || true)
+  dockerfile_to_check=$1
+  base_image_defaults=$(grep -E '^ARG[[:space:]]+[A-Za-z0-9_]*IMAGE=' "$dockerfile_to_check" || true)
 
   if [ -z "$base_image_defaults" ]; then
     printf '%s\n' "Dockerfile must declare tagged base image ARG defaults ending in _IMAGE" >&2
@@ -130,6 +131,16 @@ require_dockerfile_base_image_defaults() {
 '
   done
   IFS=$old_ifs
+}
+
+require_repository_template_base_image_defaults() {
+  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
+    if [ ! -f "$template_dockerfile" ]; then
+      continue
+    fi
+
+    require_dockerfile_base_image_defaults "$template_dockerfile"
+  done
 }
 
 require_dockerfile_oci_metadata() {
@@ -339,7 +350,8 @@ require_bake_plan_attestation_controls() {
 load_image_build_settings
 require_no_push_validation_mode
 require_build_paths
-require_dockerfile_base_image_defaults
+require_dockerfile_base_image_defaults "$DOCKERFILE"
+require_repository_template_base_image_defaults
 require_dockerfile_oci_metadata
 require_context_hygiene_contract
 require_build_contract_guidance

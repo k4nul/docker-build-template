@@ -60,7 +60,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   management-only docs out of the Docker build context through `.dockerignore`.
 - Base image dependencies: treat Dockerfile `*_IMAGE` argument defaults as the
   template's dependency inputs. Use explicit tags or digests, do not use
-  `latest`, and review `alpine`, `node`, and `nginx` base image updates as a
+  `latest`, and keep every `docker/Dockerfile*` template under the same
+  validation gate. Review `alpine`, `node`, and `nginx` base image updates as a
   coherent build-template upgrade with the no-push validation suite.
 
 ## Secrets And Attestations

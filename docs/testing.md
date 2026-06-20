@@ -74,7 +74,8 @@ requested `SBOM` and `PROVENANCE` controls with cache-only output while
 checks before Docker is called, including supported config keys, URL userinfo
 and common token or private-key markers in public build values,
 repository-bound local context and Dockerfile paths, explicit base image tags or
-digests, Dockerfile OCI metadata bindings, required `.dockerignore` patterns,
+digests for the selected Dockerfile and repository template Dockerfiles,
+Dockerfile OCI metadata bindings, required `.dockerignore` patterns,
 and required build-contract guidance.
 
 Remote contexts such as URL or `git@` contexts skip the local directory check.
