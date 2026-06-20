@@ -452,6 +452,128 @@ EOF
   pass "Dockerfile outside the repository is rejected before docker buildx bake"
 }
 
+test_absolute_in_repo_context_and_dockerfile_are_allowed() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "absolute-in-repo-paths"
+  mkdir -p "$FIXTURE_DIR/app-context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<EOF
+CONTEXT=$FIXTURE_DIR/app-context
+DOCKERFILE=$FIXTURE_DIR/docker/Dockerfile
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 0
+  assert_output_contains "No-push build plan validation passed for example-app:0.1.0"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=$FIXTURE_DIR/app-context"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "DOCKERFILE=$FIXTURE_DIR/docker/Dockerfile"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  pass "absolute context and Dockerfile paths are allowed when they stay inside the repository"
+}
+
+test_absolute_context_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "absolute-outside-context"
+  outside_context="$TEST_ROOT/outside-context"
+  mkdir -p "$outside_context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<EOF
+CONTEXT=$outside_context
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Build context must stay inside repository: $outside_context"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "absolute context paths outside the repository are rejected before docker buildx bake"
+}
+
+test_context_symlink_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "outside-context-symlink"
+  outside_context="$TEST_ROOT/outside-context-symlink-target"
+  mkdir -p "$outside_context"
+  ln -s "$outside_context" "$FIXTURE_DIR/context-link"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=context-link
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Build context must stay inside repository: context-link"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "context symlinks resolving outside the repository are rejected before docker buildx bake"
+}
+
+test_context_symlink_inside_repo_is_allowed() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "inside-context-symlink"
+  mkdir -p "$FIXTURE_DIR/app-context"
+  ln -s "$FIXTURE_DIR/app-context" "$FIXTURE_DIR/context-link"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=context-link
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 0
+  assert_output_contains "No-push build plan validation passed for example-app:0.1.0"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=context-link"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  pass "context symlinks resolving inside the repository are allowed"
+}
+
+test_absolute_dockerfile_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "absolute-outside-dockerfile"
+  outside_dockerfile="$TEST_ROOT/outside.Dockerfile"
+  printf '%s\n' "FROM scratch" > "$outside_dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<EOF
+DOCKERFILE=$outside_dockerfile
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must stay inside repository: $outside_dockerfile"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "absolute Dockerfile paths outside the repository are rejected before docker buildx bake"
+}
+
+test_dockerfile_symlinked_directory_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "outside-dockerfile-directory-symlink"
+  outside_docker_dir="$TEST_ROOT/outside-docker-dir"
+  mkdir -p "$outside_docker_dir"
+  printf '%s\n' "FROM scratch" > "$outside_docker_dir/Dockerfile"
+  ln -s "$outside_docker_dir" "$FIXTURE_DIR/docker-link"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+DOCKERFILE=docker-link/Dockerfile
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must stay inside repository: docker-link/Dockerfile"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "Dockerfile paths through directory symlinks outside the repository are rejected before docker buildx bake"
+}
+
 test_explicit_missing_config_file_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "missing-config"
@@ -579,6 +701,25 @@ EOF
   pass "remote contexts skip local directory checks and still print the bake plan"
 }
 
+test_git_ssh_remote_context_skips_local_directory_check() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "git-ssh-remote-context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=git@github.com:example/app.git
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 0
+  assert_output_contains "No-push build plan validation passed for example-app:0.1.0"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=git@github.com:example/app.git"
+  assert_file_contains "$FIXTURE_DIR/docker.log" \
+    "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
+  pass "git SSH remote contexts skip local directory checks and still print the bake plan"
+}
+
 install_docker_stub
 test_success_uses_no_push_bake_plan
 test_no_push_bake_plan_requires_cache_only_output
@@ -594,6 +735,12 @@ test_push_true_is_rejected_before_bake
 test_missing_local_context_is_rejected_before_bake
 test_parent_context_is_rejected_before_bake
 test_dockerfile_outside_repo_is_rejected_before_bake
+test_absolute_in_repo_context_and_dockerfile_are_allowed
+test_absolute_context_outside_repo_is_rejected_before_bake
+test_context_symlink_outside_repo_is_rejected_before_bake
+test_context_symlink_inside_repo_is_allowed
+test_absolute_dockerfile_outside_repo_is_rejected_before_bake
+test_dockerfile_symlinked_directory_outside_repo_is_rejected_before_bake
 test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
 test_credential_dockerignore_patterns_are_enforced
@@ -601,5 +748,6 @@ test_required_oci_label_bindings_are_enforced
 test_build_contract_is_required_before_bake
 test_build_contract_security_guidance_is_enforced
 test_remote_context_skips_local_directory_check
+test_git_ssh_remote_context_skips_local_directory_check
 
 printf '1..%s\n' "$TESTS_RUN"
