@@ -844,6 +844,45 @@ EOF
   pass "git SSH remote contexts skip local directory checks and still print the bake plan"
 }
 
+test_remote_context_still_requires_template_dockerignore() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "remote-context-missing-dockerignore"
+  rm "$FIXTURE_DIR/.dockerignore"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=https://github.com/example/app.git
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is required before validating a public build context"
+  assert_output_contains "Missing build-context ignore file: .dockerignore"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "remote contexts still require the template root .dockerignore contract"
+}
+
+test_remote_context_still_enforces_template_dockerignore_patterns() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "remote-context-dockerignore-patterns"
+  grep -Fxv -- ".codex" "$FIXTURE_DIR/.dockerignore" > "$FIXTURE_DIR/.dockerignore.tmp"
+  mv "$FIXTURE_DIR/.dockerignore.tmp" "$FIXTURE_DIR/.dockerignore"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=git@github.com:example/app.git
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is missing required pattern: .codex"
+  assert_output_contains "Checked build-context ignore file: .dockerignore"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "remote contexts still enforce required template .dockerignore patterns"
+}
+
 install_docker_stub
 test_success_uses_no_push_bake_plan
 test_no_push_bake_plan_requires_cache_only_output
@@ -879,5 +918,7 @@ test_build_contract_is_required_before_bake
 test_build_contract_security_guidance_is_enforced
 test_remote_context_skips_local_directory_check
 test_git_ssh_remote_context_skips_local_directory_check
+test_remote_context_still_requires_template_dockerignore
+test_remote_context_still_enforces_template_dockerignore_patterns
 
 printf '1..%s\n' "$TESTS_RUN"
