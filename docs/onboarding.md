@@ -24,12 +24,15 @@ step at the deeper reference docs.
    PUSH=false
    SBOM=false
    PROVENANCE=false
+   OCI_TITLE=My App
+   OCI_DESCRIPTION=Container image for My App
    OCI_SOURCE=https://example.com/team/my-app
    OCI_REVISION=<commit-sha-from-ci>
+   OCI_LICENSES=MIT
    ```
 
    Keep `PUSH=false`, `SBOM=false`, and `PROVENANCE=false` until the rendered
-   no-push plan has been reviewed.
+   no-push plan has been reviewed with final public-safe OCI metadata values.
 
 3. Run config-aware validation:
 
@@ -38,9 +41,13 @@ step at the deeper reference docs.
    ```
 
    This loads `CONFIG_FILE`, applies environment overrides, checks the local
-   context and Dockerfile path, validates `.dockerignore` and Dockerfile
-   metadata bindings, and prints the Buildx plan with cache-only output while
-   `PUSH=false`.
+   context and Dockerfile path, resolves Dockerfile symlinks, validates the
+   effective build context `.dockerignore` and template Dockerfile metadata
+   bindings, and prints the Buildx plan with cache-only output while
+   `PUSH=false`. A successful dry-run prints
+   `No-push build plan validation passed for ...`; the rendered plan must keep
+   `type=cacheonly`, omit registry output, and match the requested SBOM and
+   provenance settings.
 
 4. Build locally only after validation passes:
 
@@ -59,7 +66,9 @@ file. This lets CI override `IMAGE_TAG`, `OCI_REVISION`, platforms, and
 attestation settings without editing committed files.
 
 Do not store registry credentials in `config/image.env`. Authenticate through
-the Docker client or CI secret store before running the push path.
+the Docker client or CI secret store before running the push path. When
+`REGISTRY` is set, use a slash-terminated prefix such as `ghcr.io/acme/`; do not
+use URL syntax or `user:pass@` values.
 
 ## Plan Review Boundaries
 

@@ -34,8 +34,9 @@ a temporary `docker` stub on `PATH`, so they can check the wrapper behavior
 without building or pushing an image. These tests verify config parsing,
 environment override precedence, image reference construction, output mode
 selection, no-push validation gates, push-wrapper sequencing, attestation flag
-forwarding, context path checks, `.dockerignore` requirements, Dockerfile OCI
-label bindings, and the required supply-chain guidance in
+forwarding, registry prefix safety, context path and Dockerfile symlink checks,
+effective build-context `.dockerignore` requirements, template-wide Dockerfile
+OCI label bindings, and the required supply-chain guidance in
 `docs/build-contract.md`.
 
 `scripts/validate-build-plan.sh` checks `docs/build-contract.md` for required
@@ -73,15 +74,21 @@ requested `SBOM` and `PROVENANCE` controls with cache-only output while
 `PUSH=false`, without building or pushing an image. It also performs local
 checks before Docker is called, including supported config keys, URL userinfo
 and common token or private-key markers in public build values,
-repository-bound local context and Dockerfile paths, explicit base image tags or
-digests for the selected Dockerfile and repository template Dockerfiles,
-Dockerfile OCI metadata bindings, required `.dockerignore` patterns,
+credential-shaped registry prefixes, repository-bound local context and
+Dockerfile paths, final Dockerfile symlink resolution, explicit base image tags
+or digests for the selected Dockerfile and repository template Dockerfiles,
+template-wide Dockerfile OCI metadata bindings, required `.dockerignore`
+patterns on the selected local context,
 and required build-contract guidance.
 
 Remote contexts such as URL or `git@` contexts skip the local directory check.
 Treat them as a separate review item: local `.dockerignore` validation proves
 the template contract exists, but it does not prove that a remote context has
 equivalent hygiene.
+
+For local subdirectory contexts, Docker reads `.dockerignore` from that context
+root. Add and validate the ignore file there; the repository-root `.dockerignore`
+does not protect a different selected context.
 
 ## Local Build Validation
 
@@ -125,6 +132,11 @@ rejected so registry output cannot bypass no-push validation.
 - `Buildx bake plan enables ... while ...=false`: inspect environment overrides
   as well as `config/image.env`; environment values take precedence over the
   config file.
+- `Missing build-context ignore file`: add `.dockerignore` to the selected
+  local context directory and include the required credential, cache, dotenv,
+  config, archive, and generated-output patterns.
+- `REGISTRY must not include credentials or userinfo`: authenticate outside the
+  template config and use a slash-terminated registry prefix.
 - `Buildx bake plan is missing explicit no-push output`: restore the Bake target
   output contract so `PUSH=false` renders cache-only output.
 - `docs/build-contract.md is required`: restore the build contract before

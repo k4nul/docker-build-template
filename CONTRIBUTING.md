@@ -26,8 +26,8 @@ direct Bake commands do not read `CONFIG_FILE`.
 - Preserve `PUSH=false` as the default.
 - Preserve `SBOM=false` and `PROVENANCE=false` as public-safe defaults.
 - Keep OCI metadata args, labels, and bake args aligned.
-- Keep `.dockerignore` aligned with `.gitignore` for local configs, credentials,
-  generated outputs, and build caches.
+- Keep each selected local context `.dockerignore` aligned with `.gitignore` for
+  local configs, credentials, generated outputs, and build caches.
 - Update `docs/build-contract.md` when build inputs or outputs change.
 - Update `SECURITY.md` when metadata, SBOM, provenance, or attestation behavior
   changes.

@@ -32,6 +32,23 @@ resolve_existing_dir() {
 
 resolve_existing_file() {
   file_path=$1
+
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "$file_path"
+    return
+  fi
+
+  if readlink -f "$file_path" >/dev/null 2>&1; then
+    readlink -f "$file_path"
+    return
+  fi
+
+  if [ -L "$file_path" ]; then
+    printf '%s\n' \
+      "Cannot resolve Dockerfile symlink without realpath or readlink -f: $file_path" >&2
+    exit 2
+  fi
+
   file_dir=${file_path%/*}
   file_name=${file_path##*/}
 
@@ -65,6 +82,8 @@ require_no_push_validation_mode() {
 }
 
 require_build_paths() {
+  RESOLVED_LOCAL_CONTEXT=
+
   if ! is_remote_context "$CONTEXT"; then
     if [ ! -d "$CONTEXT" ]; then
       printf '%s\n' "Build context does not exist: $CONTEXT" >&2
@@ -73,6 +92,7 @@ require_build_paths() {
 
     resolved_context=$(resolve_existing_dir "$CONTEXT")
     require_repo_bound_path "Build context" "$CONTEXT" "$resolved_context"
+    RESOLVED_LOCAL_CONTEXT=$resolved_context
   fi
 
   if [ ! -f "$DOCKERFILE" ]; then
@@ -133,6 +153,17 @@ require_dockerfile_base_image_defaults() {
   IFS=$old_ifs
 }
 
+require_repository_template_paths() {
+  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
+    if [ ! -f "$template_dockerfile" ]; then
+      continue
+    fi
+
+    resolved_template_dockerfile=$(resolve_existing_file "$template_dockerfile")
+    require_repo_bound_path "Dockerfile" "$template_dockerfile" "$resolved_template_dockerfile"
+  done
+}
+
 require_repository_template_base_image_defaults() {
   for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
     if [ ! -f "$template_dockerfile" ]; then
@@ -144,6 +175,8 @@ require_repository_template_base_image_defaults() {
 }
 
 require_dockerfile_oci_metadata() {
+  dockerfile_to_check=$1
+
   for required_arg in \
     OCI_TITLE \
     OCI_DESCRIPTION \
@@ -151,7 +184,7 @@ require_dockerfile_oci_metadata() {
     OCI_REVISION \
     OCI_LICENSES
   do
-    if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$DOCKERFILE"; then
+    if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$dockerfile_to_check"; then
       printf '%s\n' "Dockerfile is missing required OCI metadata argument: $required_arg" >&2
       exit 2
     fi
@@ -164,16 +197,37 @@ require_dockerfile_oci_metadata() {
     'org.opencontainers.image.revision="${OCI_REVISION}"' \
     'org.opencontainers.image.licenses="${OCI_LICENSES}"'
   do
-    if ! grep -F -- "$required_label" "$DOCKERFILE" >/dev/null; then
+    if ! grep -F -- "$required_label" "$dockerfile_to_check" >/dev/null; then
       printf '%s\n' "Dockerfile is missing required OCI label binding: $required_label" >&2
       exit 2
     fi
   done
 }
 
+require_repository_template_oci_metadata() {
+  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
+    if [ ! -f "$template_dockerfile" ]; then
+      continue
+    fi
+
+    require_dockerfile_oci_metadata "$template_dockerfile"
+  done
+}
+
 require_context_hygiene_contract() {
-  if [ ! -f .dockerignore ]; then
+  dockerignore_path=.dockerignore
+  dockerignore_label=.dockerignore
+
+  if [ -n "${RESOLVED_LOCAL_CONTEXT:-}" ]; then
+    dockerignore_path="$RESOLVED_LOCAL_CONTEXT/.dockerignore"
+    if [ "$RESOLVED_LOCAL_CONTEXT" != "$REPO_ROOT" ]; then
+      dockerignore_label="${CONTEXT%/}/.dockerignore"
+    fi
+  fi
+
+  if [ ! -f "$dockerignore_path" ]; then
     printf '%s\n' ".dockerignore is required before validating a public build context" >&2
+    printf '%s\n' "Missing build-context ignore file: $dockerignore_label" >&2
     exit 2
   fi
 
@@ -201,8 +255,9 @@ require_context_hygiene_contract() {
     "id_rsa" \
     "id_ed25519"
   do
-    if ! grep -Fx -- "$required_pattern" .dockerignore >/dev/null; then
+    if ! grep -Fx -- "$required_pattern" "$dockerignore_path" >/dev/null; then
       printf '%s\n' ".dockerignore is missing required pattern: $required_pattern" >&2
+      printf '%s\n' "Checked build-context ignore file: $dockerignore_label" >&2
       exit 2
     fi
   done
@@ -351,8 +406,10 @@ load_image_build_settings
 require_no_push_validation_mode
 require_build_paths
 require_dockerfile_base_image_defaults "$DOCKERFILE"
+require_repository_template_paths
 require_repository_template_base_image_defaults
-require_dockerfile_oci_metadata
+require_dockerfile_oci_metadata "$DOCKERFILE"
+require_repository_template_oci_metadata
 require_context_hygiene_contract
 require_build_contract_guidance
 require_bake_plan_attestation_controls

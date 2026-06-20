@@ -268,6 +268,55 @@ EOF
   pass "token-like metadata is rejected before build args or labels"
 }
 
+test_registry_userinfo_prefix_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/registry-userinfo.env"
+  output_file="$TEST_ROOT/registry-userinfo.out"
+
+  cat > "$config_file" <<'EOF'
+REGISTRY=user:token@registry.example.com/team/
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "REGISTRY must not include credentials or userinfo"
+  pass "registry prefixes with credential-shaped userinfo are rejected"
+}
+
+test_registry_prefix_requires_trailing_slash() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/registry-prefix.env"
+  output_file="$TEST_ROOT/registry-prefix.out"
+
+  cat > "$config_file" <<'EOF'
+REGISTRY=registry.example.com/team
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "REGISTRY must be empty or end with /"
+  pass "registry prefixes must be explicit slash-terminated prefixes"
+}
+
+test_invalid_image_tag_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/invalid-tag.env"
+  output_file="$TEST_ROOT/invalid-tag.out"
+
+  cat > "$config_file" <<'EOF'
+IMAGE_TAG=release/2026
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains \
+    "IMAGE_TAG must contain only letters, numbers, underscores, periods, or dashes"
+  pass "invalid image tag characters are rejected before building image references"
+}
+
 test_empty_config_values_fall_back_to_defaults() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/empty-values.env"
@@ -325,6 +374,9 @@ test_unsupported_config_keys_are_rejected
 test_invalid_boolean_and_provenance_values_are_rejected
 test_url_userinfo_config_values_are_rejected
 test_token_like_config_values_are_rejected
+test_registry_userinfo_prefix_is_rejected
+test_registry_prefix_requires_trailing_slash
+test_invalid_image_tag_values_are_rejected
 test_empty_config_values_fall_back_to_defaults
 test_missing_explicit_config_file_is_rejected
 test_defaults_remain_valid_when_exported_for_buildx

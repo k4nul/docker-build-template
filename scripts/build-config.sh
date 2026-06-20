@@ -163,6 +163,66 @@ require_public_build_value() {
   esac
 }
 
+require_image_reference_value() {
+  image_setting_name=$1
+  image_setting_value=$2
+
+  case "$image_setting_value" in
+    *[[:space:]]*)
+      printf '%s\n' "$image_setting_name must not contain whitespace" >&2
+      exit 2
+      ;;
+    *://*)
+      printf '%s\n' "$image_setting_name must be a Docker image reference value, not a URL" >&2
+      exit 2
+      ;;
+    *@*)
+      printf '%s\n' "$image_setting_name must not include credentials or userinfo" >&2
+      exit 2
+      ;;
+  esac
+}
+
+require_registry_prefix() {
+  if [ -z "$REGISTRY" ]; then
+    return 0
+  fi
+
+  require_image_reference_value REGISTRY "$REGISTRY"
+
+  case "$REGISTRY" in
+    */) ;;
+    *)
+      printf '%s\n' "REGISTRY must be empty or end with /" >&2
+      exit 2
+      ;;
+  esac
+}
+
+require_image_tag_value() {
+  require_image_reference_value IMAGE_TAG "$IMAGE_TAG"
+
+  case "$IMAGE_TAG" in
+    .*)
+      printf '%s\n' "IMAGE_TAG must not start with ." >&2
+      exit 2
+      ;;
+    -*)
+      printf '%s\n' "IMAGE_TAG must not start with -" >&2
+      exit 2
+      ;;
+    *[!A-Za-z0-9_.-]*)
+      printf '%s\n' \
+        "IMAGE_TAG must contain only letters, numbers, underscores, periods, or dashes" >&2
+      exit 2
+      ;;
+  esac
+}
+
+require_image_name_value() {
+  require_image_reference_value IMAGE_NAME "$IMAGE_NAME"
+}
+
 require_single_platform_load() {
   if [ "$PUSH" = "false" ]; then
     case "$PLATFORMS" in
@@ -293,6 +353,10 @@ validate_image_build_settings() {
     printf '%s\n' "OCI_LICENSES must not be empty" >&2
     exit 2
   fi
+
+  require_registry_prefix
+  require_image_name_value
+  require_image_tag_value
 
   require_public_build_value REGISTRY "$REGISTRY"
   require_public_build_value IMAGE_NAME "$IMAGE_NAME"

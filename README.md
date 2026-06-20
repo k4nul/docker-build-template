@@ -21,7 +21,6 @@ archives, or build cache output.
 cp config/image.env.example config/image.env
 CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
 CONFIG_FILE=config/image.env ./scripts/build-image.sh
-CONFIG_FILE=config/image.env ./scripts/push-image.sh # after registry login
 docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported env only
 ```
 
@@ -29,7 +28,9 @@ Edit `config/image.env` for the target registry, image name, tag, context,
 Dockerfile, platforms, attestation modes, and OCI image metadata. Keep
 `PUSH=false`, `SBOM=false`, and `PROVENANCE=false` until the no-push plan is
 validated. Replace the example `OCI_SOURCE` and `OCI_REVISION` values with the
-public source URL and CI commit SHA before publishing.
+public source URL and CI commit SHA before publishing. After registry login,
+use `CONFIG_FILE=config/image.env ./scripts/push-image.sh` for the push path so
+the wrapper can rerun no-push validation before enabling registry output.
 
 For a first-time adoption sequence that explains config precedence, no-push
 validation, direct Bake limitations, local builds, and the CI push handoff, see
@@ -44,7 +45,7 @@ revision metadata without editing files.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `REGISTRY` | empty | Optional registry prefix, such as `ghcr.io/acme/`. |
+| `REGISTRY` | empty | Optional slash-terminated registry prefix, such as `ghcr.io/acme/`. |
 | `IMAGE_NAME` | `example-app` | Image repository name. |
 | `IMAGE_TAG` | `0.1.0` | Image tag. |
 | `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must be reviewed separately. |
@@ -60,9 +61,11 @@ store registry credentials in `config/image.env`; authenticate with the registry
 through the Docker client or CI secret store before running a push job. Values
 that flow into image references, build arguments, or OCI labels are public build
 metadata; validation rejects URL userinfo and common token or private-key
-markers before Docker is called. Private registry names, internal paths, and
-overly specific source metadata still require human review before publishing
-outside the intended registry boundary.
+markers before Docker is called. Registry prefixes must not be URLs, must not
+contain credential-shaped userinfo, and must end in `/` when set so the image
+reference cannot silently join the registry namespace and image name. Private
+registry names, internal paths, and overly specific source metadata still
+require human review before publishing outside the intended registry boundary.
 
 ## Validation Flow
 
@@ -75,11 +78,15 @@ requires `PUSH=false` and checks:
 - local build context and Dockerfile paths stay inside the repository. Remote
   contexts such as URL or `git@` contexts skip the local directory check and
   need separate source and context-hygiene review.
+- local Dockerfile symlinks resolve inside the repository before the plan is
+  rendered.
 - selected and repository template Dockerfile base image defaults use explicit
   tags or digests instead of `latest`.
-- Dockerfile OCI metadata arguments are bound to OCI labels.
-- `.dockerignore` excludes local config, dotenv files, credentials, caches,
-  generated outputs, and image archives from the build context.
+- selected and repository template Dockerfiles bind required OCI metadata
+  arguments to OCI labels.
+- the effective local build context `.dockerignore` excludes local config,
+  dotenv files, credentials, caches, generated outputs, and image archives from
+  the build context.
 - `docs/build-contract.md` contains the supply-chain guidance enforced by the
   template.
 - `docker buildx bake --file buildx/docker-bake.hcl --print` renders
@@ -125,13 +132,16 @@ URLs, package tokens, private keys, internal paths, or private registry names in
 these values.
 
 Keep `SBOM=false` and `PROVENANCE=false` until a no-push plan has been reviewed.
-When enabling attestations, prefer `PROVENANCE=mode=min` before
-`PROVENANCE=mode=max`, then review generated metadata for private image names,
-internal paths, source URLs, revision values, and registry details before
-publishing outside the intended registry boundary. The validator catches URL
-userinfo and common token or private-key markers; reviewers must still check for
-private registry names, internal paths, and source metadata that should not be
-shared beyond the intended registry boundary.
+Validate the final public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`,
+`OCI_REVISION`, and `OCI_LICENSES` values first with attestations disabled.
+When enabling attestations, enable `SBOM=true` and prefer
+`PROVENANCE=mode=min`, rerun no-push validation, and inspect the rendered plan
+before pushing. Review generated metadata for private image names, internal
+paths, source URLs, revision values, and registry details before publishing
+outside the intended registry boundary. The validator catches URL userinfo and
+common token or private-key markers; reviewers must still check for private
+registry names, internal paths, and source metadata that should not be shared
+beyond the intended registry boundary.
 
 ## Troubleshooting
 
@@ -144,10 +154,16 @@ shared beyond the intended registry boundary.
   for multi-platform registry output.
 - `must not include URL userinfo or credentials`: remove embedded usernames,
   passwords, or tokens from public image reference and OCI metadata values.
+- `REGISTRY must not include credentials or userinfo`: remove `user:pass@`
+  style registry prefixes and authenticate outside the config file.
+- `REGISTRY must be empty or end with /`: use a real prefix such as
+  `ghcr.io/acme/`, or move the namespace into `IMAGE_NAME`.
 - `must not contain credential-like token material`: replace token-looking
   metadata with public-safe values before validating or publishing.
 - `Build context must stay inside repository`: use a repository-local context
   path. Parent-directory and host-level paths are rejected for local contexts.
+- `Missing build-context ignore file`: add `.dockerignore` to the selected local
+  context directory, not only to the repository root.
 - `.dockerignore is missing required pattern`: add the missing exclusion before
   publishing so local config, credentials, caches, and generated files do not
   enter the build context.

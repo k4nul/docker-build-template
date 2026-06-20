@@ -25,6 +25,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
   revision value from CI.
+- Image reference safety: `REGISTRY` is empty or a slash-terminated Docker image
+  prefix such as `ghcr.io/acme/`; it is not a URL and does not contain
+  credential-shaped userinfo. `IMAGE_TAG` uses Docker tag-safe characters.
 - Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
   reflect `CONFIG_FILE`. Direct Bake prints use defaults plus exported
   variables only, so unexported context, Dockerfile, attestation, and OCI
@@ -40,6 +43,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   bake plan without pushing.
   Local context and Dockerfile paths stay inside the repository, so
   parent-directory or host-level paths are rejected before a registry push.
+  Dockerfile symlinks are resolved before the repository-bound path check.
+  The selected local context must carry its own `.dockerignore`; subdirectory
+  contexts cannot rely on the repository-root ignore file.
   Remote contexts such as URL or `git@` contexts are allowed by the local path
   gate and require separate source and context-hygiene review.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
@@ -57,7 +63,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 
 - Build context hygiene: keep local configs, dotenv files, credentials, image
   archives, caches, generated outputs, `.codex`, local agent files, and
-  management-only docs out of the Docker build context through `.dockerignore`.
+  management-only docs out of the selected local Docker build context through `.dockerignore`
+  at that context root.
 - Base image dependencies: treat Dockerfile `*_IMAGE` argument defaults as the
   template's dependency inputs. Use explicit tags or digests, do not use
   `latest`, and keep every `docker/Dockerfile*` template under the same
@@ -88,7 +95,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Confirm `.dockerignore` excludes local config, credentials, caches, generated
   files, and image archive outputs.
 - Confirm each Dockerfile used by the template declares OCI metadata arguments
-  and label bindings.
+  and label bindings; the validator checks the selected Dockerfile and every
+  `docker/Dockerfile*` template.
+- Confirm Dockerfile symlinks and the selected local context resolve inside the
+  repository.
 - Confirm base image defaults use explicit tags or digests.
 - Confirm registry login happens outside the template scripts.
 - Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit

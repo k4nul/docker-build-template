@@ -477,6 +477,7 @@ test_absolute_in_repo_context_and_dockerfile_are_allowed() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "absolute-in-repo-paths"
   mkdir -p "$FIXTURE_DIR/app-context"
+  cp "$FIXTURE_DIR/.dockerignore" "$FIXTURE_DIR/app-context/.dockerignore"
 
   cat > "$FIXTURE_DIR/config/test.env" <<EOF
 CONTEXT=$FIXTURE_DIR/app-context
@@ -538,6 +539,7 @@ test_context_symlink_inside_repo_is_allowed() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "inside-context-symlink"
   mkdir -p "$FIXTURE_DIR/app-context"
+  cp "$FIXTURE_DIR/.dockerignore" "$FIXTURE_DIR/app-context/.dockerignore"
   ln -s "$FIXTURE_DIR/app-context" "$FIXTURE_DIR/context-link"
 
   cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
@@ -595,6 +597,45 @@ EOF
   pass "Dockerfile paths through directory symlinks outside the repository are rejected before docker buildx bake"
 }
 
+test_dockerfile_final_symlink_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "outside-dockerfile-final-symlink"
+  outside_dockerfile="$TEST_ROOT/outside-final-symlink.Dockerfile"
+  cp "$FIXTURE_DIR/docker/Dockerfile" "$outside_dockerfile"
+  ln -s "$outside_dockerfile" "$FIXTURE_DIR/docker/Dockerfile.link"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+DOCKERFILE=docker/Dockerfile.link
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must stay inside repository: docker/Dockerfile.link"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "final Dockerfile symlinks resolving outside the repository are rejected before docker buildx bake"
+}
+
+test_repository_template_symlink_outside_repo_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "outside-template-final-symlink"
+  outside_dockerfile="$TEST_ROOT/outside-template-symlink.Dockerfile"
+  cp "$FIXTURE_DIR/docker/Dockerfile" "$outside_dockerfile"
+  ln -s "$outside_dockerfile" "$FIXTURE_DIR/docker/Dockerfile.external"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile must stay inside repository: docker/Dockerfile.external"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "repository template Dockerfile symlinks resolving outside the repository are rejected"
+}
+
 test_explicit_missing_config_file_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "missing-config"
@@ -623,6 +664,45 @@ EOF
   assert_output_contains ".dockerignore is missing required pattern: config/image.env"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "required .dockerignore patterns are enforced"
+}
+
+test_subdirectory_context_requires_effective_dockerignore() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "subdirectory-context-missing-dockerignore"
+  mkdir -p "$FIXTURE_DIR/app-context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=app-context
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is required before validating a public build context"
+  assert_output_contains "Missing build-context ignore file: app-context/.dockerignore"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "subdirectory contexts require their effective build-context .dockerignore"
+}
+
+test_subdirectory_context_dockerignore_patterns_are_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "subdirectory-context-dockerignore"
+  mkdir -p "$FIXTURE_DIR/app-context"
+  grep -Fxv -- "*.key" "$FIXTURE_DIR/.dockerignore" > "$FIXTURE_DIR/app-context/.dockerignore"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+CONTEXT=app-context
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is missing required pattern: *.key"
+  assert_output_contains "Checked build-context ignore file: app-context/.dockerignore"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "subdirectory contexts enforce required patterns on the effective .dockerignore"
 }
 
 test_credential_dockerignore_patterns_are_enforced() {
@@ -663,6 +743,29 @@ EOF
     "$expected_output"
   assert_no_docker_calls "$FIXTURE_DIR/docker.log"
   pass "required OCI label bindings are enforced before docker buildx bake"
+}
+
+test_alternate_template_oci_label_bindings_are_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "alternate-template-oci-labels"
+  grep -Fv -- 'org.opencontainers.image.source="${OCI_SOURCE}"' \
+    "$FIXTURE_DIR/docker/Dockerfile.multistage" \
+    > "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp" \
+    "$FIXTURE_DIR/docker/Dockerfile.multistage"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  expected_output='Dockerfile is missing required OCI label binding: '
+  expected_output="${expected_output}"'org.opencontainers.image.source="${OCI_SOURCE}"'
+  assert_output_contains "$expected_output"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "alternate template Dockerfiles must keep required OCI label bindings"
 }
 
 test_build_contract_is_required_before_bake() {
@@ -763,10 +866,15 @@ test_context_symlink_outside_repo_is_rejected_before_bake
 test_context_symlink_inside_repo_is_allowed
 test_absolute_dockerfile_outside_repo_is_rejected_before_bake
 test_dockerfile_symlinked_directory_outside_repo_is_rejected_before_bake
+test_dockerfile_final_symlink_outside_repo_is_rejected_before_bake
+test_repository_template_symlink_outside_repo_is_rejected_before_bake
 test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
+test_subdirectory_context_requires_effective_dockerignore
+test_subdirectory_context_dockerignore_patterns_are_enforced
 test_credential_dockerignore_patterns_are_enforced
 test_required_oci_label_bindings_are_enforced
+test_alternate_template_oci_label_bindings_are_enforced
 test_build_contract_is_required_before_bake
 test_build_contract_security_guidance_is_enforced
 test_remote_context_skips_local_directory_check

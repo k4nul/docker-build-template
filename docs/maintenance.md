@@ -34,8 +34,11 @@ see [docs/onboarding.md](onboarding.md).
    REGISTRY=registry.example.com/team/
    IMAGE_NAME=my-app
    IMAGE_TAG=0.1.0
+   OCI_TITLE=My App
+   OCI_DESCRIPTION=Container image for My App
    OCI_SOURCE=https://example.com/team/my-app
    OCI_REVISION=<commit-sha-from-ci>
+   OCI_LICENSES=MIT
    ```
 
 4. Validate the no-push plan:
@@ -59,7 +62,10 @@ see [docs/onboarding.md](onboarding.md).
    A no-push Bake plan should render cache-only output. Registry output should
    appear in direct Bake output only when `PUSH=true`; the push wrapper's real
    publish step uses the shared `docker buildx build --push` command after
-   no-push validation passes.
+   no-push validation passes. A successful validator run prints
+   `No-push build plan validation passed for ...`, keeps `type=cacheonly`,
+   omits registry output, and matches the requested SBOM and provenance
+   settings.
 
 6. Build locally only after validation passes:
 
@@ -81,6 +87,7 @@ Use environment overrides in CI instead of editing the config file:
 ```bash
 CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
+OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
 ./scripts/push-image.sh
 ```
@@ -127,8 +134,10 @@ SBOM=false
 PROVENANCE=false
 ```
 
-When a project is ready to publish attestations, enable one change at a time and
-review the printed Buildx plan before pushing:
+When a project is ready to publish attestations, first validate the final
+public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, and
+`OCI_LICENSES` values with attestations disabled. Then enable one attestation
+change at a time and review the printed Buildx plan before pushing:
 
 ```text
 SBOM=true
@@ -144,9 +153,11 @@ private registry names and internal paths are human-review items.
 ## Build Context And Secret Handling
 
 The validator requires `.dockerignore` to exclude local config, dotenv files,
-credentials, caches, generated outputs, and image archives from the build
-context. Keep project-specific secret files outside Git and outside the build
-context.
+credentials, caches, generated outputs, and image archives from the selected
+local build context. For subdirectory contexts, put the `.dockerignore` in that
+context directory because Docker does not use the repository-root ignore file
+for a different context root. Keep project-specific secret files outside Git and
+outside the build context.
 
 If a project-specific build needs a short-lived package token or private key,
 use BuildKit secret mounts in that project adaptation. Do not pass secrets
@@ -160,14 +171,16 @@ manual review items before publishing outside the intended registry boundary.
 - `CONFIG_FILE` points at the intended project config.
 - `PUSH=false` validation passes before any push job runs.
 - `REGISTRY`, `IMAGE_NAME`, and `IMAGE_TAG` produce the intended image
-  reference.
+  reference. `REGISTRY` is empty or a slash-terminated prefix without URL syntax
+  or `user:pass@` userinfo.
 - `CONTEXT` and `DOCKERFILE` stay inside the repository for local contexts.
   Remote URL or `git@` contexts are reviewed separately because the local path
   check and local `.dockerignore` cannot prove remote context hygiene.
+- Dockerfile symlinks resolve inside the repository.
 - The no-push Bake plan renders `output=type=cacheonly`, not registry output.
 - Base image `*_IMAGE` defaults use explicit tags or digests, not `latest`.
-- `.dockerignore` keeps local config, credentials, caches, and generated output
-  out of the build context.
+- the selected local context `.dockerignore` keeps local config, credentials,
+  caches, and generated output out of the build context.
 - `OCI_SOURCE` is a public source URL and `OCI_REVISION` is the CI commit SHA.
 - Public image identity and OCI metadata values do not include URL userinfo,
   token-like strings, or private keys, and manual review has cleared any private
