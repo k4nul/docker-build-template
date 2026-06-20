@@ -49,6 +49,11 @@ step at the deeper reference docs.
    `type=cacheonly`, omit registry output, and match the requested SBOM and
    provenance settings.
 
+   Capture the review evidence before enabling a push path: image reference,
+   cache-only output mode, context and `.dockerignore` status, public-safe
+   `OCI_*` metadata, platform list, and attestation settings. The focused
+   checklist is in [docs/no-push-validation.md](no-push-validation.md).
+
 4. Build locally only after validation passes:
 
    ```bash
@@ -95,6 +100,7 @@ outside the template scripts, and call the push wrapper:
 ```bash
 CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
+OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
 ./scripts/push-image.sh
 ```
@@ -107,6 +113,9 @@ Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected.
 
 - [docs/build-contract.md](build-contract.md) defines the template behavior that
   wrapper scripts, Dockerfiles, Bake, and documentation must preserve.
+- [docs/no-push-validation.md](no-push-validation.md) provides the approval
+  record to complete before registry pushes, multi-platform output, SBOMs, or
+  provenance attestations.
 - [docs/testing.md](testing.md) lists the shell checks, stubbed tests, real
   Buildx validation, and troubleshooting steps.
 - [docs/maintenance.md](maintenance.md) provides the operator runbook for

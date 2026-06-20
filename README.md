@@ -35,6 +35,9 @@ the wrapper can rerun no-push validation before enabling registry output.
 For a first-time adoption sequence that explains config precedence, no-push
 validation, direct Bake limitations, local builds, and the CI push handoff, see
 [docs/onboarding.md](docs/onboarding.md).
+For the review record to complete before allowing registry pushes, multi-platform
+output, SBOMs, or provenance attestations, see
+[docs/no-push-validation.md](docs/no-push-validation.md).
 
 ## Configuration
 
@@ -77,7 +80,9 @@ requires `PUSH=false` and checks:
   obvious credential material.
 - local build context and Dockerfile paths stay inside the repository. Remote
   contexts such as URL or `git@` contexts skip the local directory check and
-  need separate source and context-hygiene review.
+  need separate source and context-hygiene review; the validator still checks
+  the template repository's root `.dockerignore`, which does not prove remote
+  ignore behavior.
 - local Dockerfile symlinks resolve inside the repository before the plan is
   rendered.
 - selected and repository template Dockerfile base image defaults use explicit
@@ -110,6 +115,9 @@ overrides, multi-platform publishing, and attestation review, see
 [docs/maintenance.md](docs/maintenance.md). For the template test suite, Docker
 stubs, and real Buildx validation boundaries, see
 [docs/testing.md](docs/testing.md).
+For a compact approval checklist that captures the successful no-push plan
+before registry publishing, see
+[docs/no-push-validation.md](docs/no-push-validation.md).
 
 ## Multi-Platform Builds
 
@@ -165,8 +173,9 @@ beyond the intended registry boundary.
 - `Missing build-context ignore file`: add `.dockerignore` to the selected local
   context directory, not only to the repository root.
 - `.dockerignore is missing required pattern`: add the missing exclusion before
-  publishing so local config, credentials, caches, and generated files do not
-  enter the build context.
+  publishing so local config, dotenv files, credentials, agent metadata, caches,
+  image archives, and generated files do not enter the build context. The full
+  enforced pattern list is in [docs/no-push-validation.md](docs/no-push-validation.md).
 - `Dockerfile must not use latest`: pin `*_IMAGE` argument defaults to explicit
   tags or digests.
 - `Buildx bake plan enables SBOM attestation while SBOM=false`: inspect the

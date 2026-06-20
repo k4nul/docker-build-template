@@ -81,10 +81,16 @@ template-wide Dockerfile OCI metadata bindings, required `.dockerignore`
 patterns on the selected local context,
 and required build-contract guidance.
 
+When a validation run is being used to approve registry output or attestations,
+capture the review fields in [docs/no-push-validation.md](no-push-validation.md)
+from the same config and environment overrides that CI will use. This keeps the
+validation evidence tied to the actual image reference, context, platform list,
+metadata, and attestation settings that the push wrapper will publish.
+
 Remote contexts such as URL or `git@` contexts skip the local directory check.
-Treat them as a separate review item: local `.dockerignore` validation proves
-the template contract exists, but it does not prove that a remote context has
-equivalent hygiene.
+Treat them as a separate review item: the validator still checks the template
+repository's root `.dockerignore`, which proves the template contract exists,
+but it does not prove that a remote context has equivalent hygiene.
 
 For local subdirectory contexts, Docker reads `.dockerignore` from that context
 root. Add and validate the ignore file there; the repository-root `.dockerignore`
@@ -134,7 +140,8 @@ rejected so registry output cannot bypass no-push validation.
   config file.
 - `Missing build-context ignore file`: add `.dockerignore` to the selected
   local context directory and include the required credential, cache, dotenv,
-  config, archive, and generated-output patterns.
+  config, archive, agent metadata, and generated-output patterns. The exact
+  enforced list is in [docs/no-push-validation.md](no-push-validation.md).
 - `REGISTRY must not include credentials or userinfo`: authenticate outside the
   template config and use a slash-terminated registry prefix.
 - `Buildx bake plan is missing explicit no-push output`: restore the Bake target

@@ -12,6 +12,9 @@ fast shell tests and real Docker Buildx validation, see
 For first-time project adoption, config precedence, and the CI handoff sequence,
 see [docs/onboarding.md](onboarding.md).
 
+For the review record to capture before enabling registry output or
+attestations, see [docs/no-push-validation.md](no-push-validation.md).
+
 ## Local Validation Sequence
 
 1. Copy the example configuration and edit only project-specific values:
@@ -66,6 +69,12 @@ see [docs/onboarding.md](onboarding.md).
    `No-push build plan validation passed for ...`, keeps `type=cacheonly`,
    omits registry output, and matches the requested SBOM and provenance
    settings.
+
+   Store a short review record with the image reference, cache-only output mode,
+   selected context and `.dockerignore`, public-safe `OCI_*` metadata, platform
+   list, and attestation settings. Use
+   [docs/no-push-validation.md](no-push-validation.md) as the checklist before
+   moving the same config to the push wrapper.
 
 6. Build locally only after validation passes:
 
@@ -149,6 +158,11 @@ outside the intended registry boundary, review generated metadata for private
 image names, internal paths, source URLs, revision values, and registry details.
 The validator rejects URL userinfo and common token or private-key markers, but
 private registry names and internal paths are human-review items.
+
+Use the no-push review checklist for each attestation step. Validate first with
+attestations disabled, then add `SBOM=true`, then add `PROVENANCE=mode=min`.
+Reserve `PROVENANCE=mode=max` for projects that have explicitly reviewed the
+additional metadata exposure.
 
 ## Build Context And Secret Handling
 

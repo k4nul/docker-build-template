@@ -47,7 +47,15 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   The selected local context must carry its own `.dockerignore`; subdirectory
   contexts cannot rely on the repository-root ignore file.
   Remote contexts such as URL or `git@` contexts are allowed by the local path
-  gate and require separate source and context-hygiene review.
+  gate and require separate source and context-hygiene review. The validator
+  still checks the template repository's root `.dockerignore`; that does not
+  prove the remote source has equivalent ignore behavior.
+- Review record: before enabling registry output, multi-platform publishing,
+  SBOMs, or provenance, capture the successful no-push validation evidence
+  described in [docs/no-push-validation.md](no-push-validation.md). The record
+  should identify the config source, image reference, cache-only Bake output,
+  context and `.dockerignore` state, platforms, public-safe `OCI_*` metadata,
+  and attestation settings.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
   Keep this sequence when adapting the template to CI.
