@@ -306,80 +306,55 @@ export_image_build_settings() {
   export OCI_LICENSES
 }
 
-validate_image_build_settings() {
-  if [ -z "${IMAGE_NAME:-}" ]; then
-    printf '%s\n' "IMAGE_NAME must not be empty" >&2
+require_non_empty_setting() {
+  setting_name=$1
+  setting_value=$2
+
+  if [ -z "$setting_value" ]; then
+    printf '%s\n' "$setting_name must not be empty" >&2
     exit 2
   fi
+}
 
-  if [ -z "${IMAGE_TAG:-}" ]; then
-    printf '%s\n' "IMAGE_TAG must not be empty" >&2
-    exit 2
-  fi
+require_boolean_setting() {
+  setting_name=$1
+  setting_value=$2
 
-  if [ -z "${CONTEXT:-}" ]; then
-    printf '%s\n' "CONTEXT must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${DOCKERFILE:-}" ]; then
-    printf '%s\n' "DOCKERFILE must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${PLATFORMS:-}" ]; then
-    printf '%s\n' "PLATFORMS must not be empty" >&2
-    exit 2
-  fi
-
-  case "${PUSH:-}" in
+  case "$setting_value" in
     true|false) ;;
     *)
-      printf '%s\n' "PUSH must be true or false" >&2
+      printf '%s\n' "$setting_name must be true or false" >&2
       exit 2
       ;;
   esac
+}
 
-  case "${SBOM:-}" in
-    true|false) ;;
-    *)
-      printf '%s\n' "SBOM must be true or false" >&2
-      exit 2
-      ;;
-  esac
+require_provenance_setting() {
+  setting_value=$1
 
-  case "${PROVENANCE:-}" in
+  case "$setting_value" in
     false|true|mode=min|mode=max) ;;
     *)
       printf '%s\n' "PROVENANCE must be false, true, mode=min, or mode=max" >&2
       exit 2
       ;;
   esac
+}
 
-  if [ -z "${OCI_TITLE:-}" ]; then
-    printf '%s\n' "OCI_TITLE must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${OCI_DESCRIPTION:-}" ]; then
-    printf '%s\n' "OCI_DESCRIPTION must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${OCI_SOURCE:-}" ]; then
-    printf '%s\n' "OCI_SOURCE must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${OCI_REVISION:-}" ]; then
-    printf '%s\n' "OCI_REVISION must not be empty" >&2
-    exit 2
-  fi
-
-  if [ -z "${OCI_LICENSES:-}" ]; then
-    printf '%s\n' "OCI_LICENSES must not be empty" >&2
-    exit 2
-  fi
+validate_image_build_settings() {
+  require_non_empty_setting IMAGE_NAME "${IMAGE_NAME:-}"
+  require_non_empty_setting IMAGE_TAG "${IMAGE_TAG:-}"
+  require_non_empty_setting CONTEXT "${CONTEXT:-}"
+  require_non_empty_setting DOCKERFILE "${DOCKERFILE:-}"
+  require_non_empty_setting PLATFORMS "${PLATFORMS:-}"
+  require_boolean_setting PUSH "${PUSH:-}"
+  require_boolean_setting SBOM "${SBOM:-}"
+  require_provenance_setting "${PROVENANCE:-}"
+  require_non_empty_setting OCI_TITLE "${OCI_TITLE:-}"
+  require_non_empty_setting OCI_DESCRIPTION "${OCI_DESCRIPTION:-}"
+  require_non_empty_setting OCI_SOURCE "${OCI_SOURCE:-}"
+  require_non_empty_setting OCI_REVISION "${OCI_REVISION:-}"
+  require_non_empty_setting OCI_LICENSES "${OCI_LICENSES:-}"
 
   require_registry_prefix
   require_image_name_value
