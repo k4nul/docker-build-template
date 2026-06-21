@@ -50,6 +50,13 @@ assert_file_contains() {
   fi
 }
 
+assert_file_not_exists() {
+  file_path=$1
+  if [ -e "$file_path" ]; then
+    fail "expected $file_path not to exist"
+  fi
+}
+
 assert_no_docker_calls() {
   log_file=$1
   if [ -s "$log_file" ]; then
@@ -279,6 +286,51 @@ EOF
   assert_file_contains "$review_output" '"type": "sbom"'
   assert_file_contains "$review_output" '"type": "provenance", "mode": "min"'
   pass "config-aware bake plans can be written as review artifacts"
+}
+
+test_config_aware_bake_plan_can_be_written_to_stdout() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "bake-plan-review-stdout"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=stdout-review-app
+SBOM=true
+PROVENANCE=mode=max
+EOF
+
+  VALIDATOR_BAKE_PLAN_OUTPUT=-
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+  VALIDATOR_BAKE_PLAN_OUTPUT=
+
+  assert_status 0
+  assert_output_contains '"type": "cacheonly"'
+  assert_output_contains '"type": "sbom"'
+  assert_output_contains '"type": "provenance", "mode": "max"'
+  assert_output_contains "No-push build plan validation passed for stdout-review-app:0.1.0"
+  pass "config-aware bake plans can be written to stdout for review"
+}
+
+test_failed_bake_plan_does_not_write_review_output() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "failed-bake-plan-review-output"
+  review_output="$FIXTURE_DIR/out/failed-bake-plan.json"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=missing-sbom-app
+SBOM=true
+PROVENANCE=false
+EOF
+
+  VALIDATOR_BAKE_PLAN_OUTPUT=$review_output
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+  VALIDATOR_BAKE_PLAN_OUTPUT=
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan is missing SBOM attestation while SBOM=true"
+  assert_file_not_exists "$review_output"
+  pass "failed bake plans are not persisted as review artifacts"
 }
 
 test_missing_sbom_attestation_is_rejected() {
@@ -931,6 +983,8 @@ test_success_uses_no_push_bake_plan
 test_no_push_bake_plan_requires_cache_only_output
 test_attestation_controls_are_visible_in_no_push_bake_plan
 test_config_aware_bake_plan_can_be_written_for_review
+test_config_aware_bake_plan_can_be_written_to_stdout
+test_failed_bake_plan_does_not_write_review_output
 test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
