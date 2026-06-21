@@ -233,6 +233,7 @@ require_context_hygiene_contract() {
 
   for required_pattern in \
     ".git" \
+    "config/*.env" \
     "config/image.env" \
     ".env" \
     ".env.*" \
@@ -349,6 +350,30 @@ require_bake_plan_check() {
   }
 }
 
+persist_bake_plan_review_output() {
+  bake_plan_output=$1
+
+  if [ -z "${BAKE_PLAN_OUTPUT:-}" ]; then
+    return 0
+  fi
+
+  case "$BAKE_PLAN_OUTPUT" in
+    -)
+      cat "$bake_plan_output"
+      return 0
+      ;;
+  esac
+
+  bake_plan_output_dir=${BAKE_PLAN_OUTPUT%/*}
+  if [ "$bake_plan_output_dir" != "$BAKE_PLAN_OUTPUT" ] &&
+    [ -n "$bake_plan_output_dir" ]; then
+    mkdir -p "$bake_plan_output_dir"
+  fi
+
+  cp "$bake_plan_output" "$BAKE_PLAN_OUTPUT"
+  printf '%s\n' "Wrote config-aware Buildx bake plan to $BAKE_PLAN_OUTPUT"
+}
+
 require_bake_plan_attestation_controls() {
   if ! bake_plan_output=$(write_bake_plan); then
     return 1
@@ -398,6 +423,10 @@ require_bake_plan_attestation_controls() {
         "Buildx bake plan is missing maximum provenance mode"
       ;;
   esac
+
+  if ! persist_bake_plan_review_output "$bake_plan_output"; then
+    exit_bake_plan_check_failed "$bake_plan_output"
+  fi
 
   rm -f "$bake_plan_output"
 }

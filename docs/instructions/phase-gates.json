@@ -30,7 +30,7 @@
       ],
       "exit_criteria": [
         "build scripts parse",
-        "bake plan prints",
+        "bake plan renders and can be captured",
         "OCI labels are present",
         "no-push validation exists"
       ]

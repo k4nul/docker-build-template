@@ -17,11 +17,13 @@ docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported 
 To test an actual image build, use a local or disposable registry target and
 keep `PUSH=false` unless the change explicitly concerns publishing.
 For config-aware Buildx plan validation, use `CONFIG_FILE=... ./scripts/validate-build-plan.sh`;
-direct Bake commands do not read `CONFIG_FILE`.
+add `BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json` when a review artifact is
+needed. Direct Bake commands do not read `CONFIG_FILE`.
 
 ## Pull Request Checklist
 
-- Do not commit `config/image.env`, registry credentials, image archives, or build output.
+- Do not commit non-example `config/*.env` files, registry credentials, image
+  archives, or build output.
 - Keep public examples safe to run without private registries.
 - Preserve `PUSH=false` as the default.
 - Preserve `SBOM=false` and `PROVENANCE=false` as public-safe defaults.

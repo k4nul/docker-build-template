@@ -40,17 +40,19 @@ OCI label bindings, and the required supply-chain guidance in
 `docs/build-contract.md`.
 
 `scripts/validate-build-plan.sh` checks `docs/build-contract.md` for required
-literal guidance phrases before it prints a Buildx plan. When editing the build
-contract, keep the substance and key wording for context hygiene, base image
-dependencies, secret handling, SBOM/provenance modes, and rejected direct
-`PUSH=true` builds intact.
+literal guidance phrases before it renders and checks a Buildx plan. When
+editing the build contract, keep the substance and key wording for context
+hygiene, base image dependencies, secret handling, SBOM/provenance modes, and
+rejected direct `PUSH=true` builds intact.
 
 ## Real Buildx Plan Validation
 
 Run the real no-push validator before any registry push path:
 
 ```bash
-CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+CONFIG_FILE=config/image.env \
+BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+./scripts/validate-build-plan.sh
 ```
 
 This command requires a working Docker CLI with Buildx because it loads
@@ -69,17 +71,19 @@ deliberate review after exporting the full set of variables relevant to the
 plan.
 
 The validator must run with `PUSH=false`. It exports the loaded image settings
-into the Buildx bake environment and checks that the printed plan matches the
+into the Buildx bake environment and checks that the rendered plan matches the
 requested `SBOM` and `PROVENANCE` controls with cache-only output while
-`PUSH=false`, without building or pushing an image. It also performs local
+`PUSH=false`, without building or pushing an image. Set
+`BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json` when the checked config-aware plan
+needs to be preserved as review evidence. The validator also performs local
 checks before Docker is called, including supported config keys, URL userinfo
 and common token or private-key markers in public build values,
 credential-shaped registry prefixes, repository-bound local context and
 Dockerfile paths, final Dockerfile symlink resolution, explicit base image tags
 or digests for the selected Dockerfile and repository template Dockerfiles,
 template-wide Dockerfile OCI metadata bindings, required `.dockerignore`
-patterns on the selected local context,
-and required build-contract guidance.
+patterns on the selected local context including non-example `config/*.env`
+files, and required build-contract guidance.
 
 When a validation run is being used to approve registry output or attestations,
 capture the review fields in [docs/no-push-validation.md](no-push-validation.md)

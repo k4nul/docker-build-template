@@ -37,17 +37,20 @@ step at the deeper reference docs.
 3. Run config-aware validation:
 
    ```bash
-   CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+   CONFIG_FILE=config/image.env \
+   BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+   ./scripts/validate-build-plan.sh
    ```
 
    This loads `CONFIG_FILE`, applies environment overrides, checks the local
    context and Dockerfile path, resolves Dockerfile symlinks, validates the
    effective build context `.dockerignore` and template Dockerfile metadata
-   bindings, and prints the Buildx plan with cache-only output while
+   bindings, and checks the Buildx plan with cache-only output while
    `PUSH=false`. A successful dry-run prints
-   `No-push build plan validation passed for ...`; the rendered plan must keep
-   `type=cacheonly`, omit registry output, and match the requested SBOM and
-   provenance settings.
+   `No-push build plan validation passed for ...`; when `BAKE_PLAN_OUTPUT` is
+   set, it also writes the checked config-aware plan for review. The captured
+   plan must keep `type=cacheonly`, omit registry output, and match the
+   requested SBOM and provenance settings.
 
    Capture the review evidence before enabling a push path: image reference,
    cache-only output mode, context and `.dockerignore` status, public-safe
@@ -77,9 +80,15 @@ use URL syntax or `user:pass@` values.
 
 ## Plan Review Boundaries
 
-Prefer `CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh` for normal
-review because it resolves the same settings used by the wrapper scripts before
-calling Bake.
+Prefer the config-aware validator for normal review because it resolves the same
+settings used by the wrapper scripts before calling Bake and preserves the
+checked plan as an artifact:
+
+```bash
+CONFIG_FILE=config/image.env \
+BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+./scripts/validate-build-plan.sh
+```
 
 A direct Bake print is useful only for default-template checks or for deliberate
 inspection with every needed variable exported:

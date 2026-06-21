@@ -47,15 +47,20 @@ attestations, see [docs/no-push-validation.md](no-push-validation.md).
 4. Validate the no-push plan:
 
    ```bash
-   CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+   CONFIG_FILE=config/image.env \
+   BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+   ./scripts/validate-build-plan.sh
    ```
 
 5. Inspect the rendered Buildx plan when reviewing attestation or platform
    changes. Prefer the validator for config-aware review because it loads
-   `CONFIG_FILE` and exports the resolved settings before calling Bake:
+   `CONFIG_FILE`, exports the resolved settings before calling Bake, and writes
+   the checked plan when `BAKE_PLAN_OUTPUT` is set:
 
    ```bash
-   CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+   CONFIG_FILE=config/image.env \
+   BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+   ./scripts/validate-build-plan.sh
    ```
 
    A direct Bake command reads Buildx defaults plus exported environment
@@ -66,9 +71,9 @@ attestations, see [docs/no-push-validation.md](no-push-validation.md).
    appear in direct Bake output only when `PUSH=true`; the push wrapper's real
    publish step uses the shared `docker buildx build --push` command after
    no-push validation passes. A successful validator run prints
-   `No-push build plan validation passed for ...`, keeps `type=cacheonly`,
-   omits registry output, and matches the requested SBOM and provenance
-   settings.
+   `No-push build plan validation passed for ...`, and the captured plan keeps
+   `type=cacheonly`, omits registry output, and matches the requested SBOM and
+   provenance settings.
 
    Store a short review record with the image reference, cache-only output mode,
    selected context and `.dockerignore`, public-safe `OCI_*` metadata, platform
@@ -146,7 +151,7 @@ PROVENANCE=false
 When a project is ready to publish attestations, first validate the final
 public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, and
 `OCI_LICENSES` values with attestations disabled. Then enable one attestation
-change at a time and review the printed Buildx plan before pushing:
+change at a time and review the captured Buildx plan before pushing:
 
 ```text
 SBOM=true
@@ -166,12 +171,12 @@ additional metadata exposure.
 
 ## Build Context And Secret Handling
 
-The validator requires `.dockerignore` to exclude local config, dotenv files,
-credentials, caches, generated outputs, and image archives from the selected
-local build context. For subdirectory contexts, put the `.dockerignore` in that
-context directory because Docker does not use the repository-root ignore file
-for a different context root. Keep project-specific secret files outside Git and
-outside the build context.
+The validator requires `.dockerignore` to exclude local config, non-example
+`config/*.env` files, dotenv files, credentials, caches, generated outputs, and
+image archives from the selected local build context. For subdirectory contexts,
+put the `.dockerignore` in that context directory because Docker does not use
+the repository-root ignore file for a different context root. Keep
+project-specific secret files outside Git and outside the build context.
 
 If a project-specific build needs a short-lived package token or private key,
 use BuildKit secret mounts in that project adaptation. Do not pass secrets
@@ -193,8 +198,9 @@ manual review items before publishing outside the intended registry boundary.
 - Dockerfile symlinks resolve inside the repository.
 - The no-push Bake plan renders `output=type=cacheonly`, not registry output.
 - Base image `*_IMAGE` defaults use explicit tags or digests, not `latest`.
-- the selected local context `.dockerignore` keeps local config, credentials,
-  caches, and generated output out of the build context.
+- the selected local context `.dockerignore` keeps local config, non-example
+  `config/*.env` files, credentials, caches, and generated output out of the
+  build context.
 - `OCI_SOURCE` is a public source URL and `OCI_REVISION` is the CI commit SHA.
 - Public image identity and OCI metadata values do not include URL userinfo,
   token-like strings, or private keys, and manual review has cleared any private

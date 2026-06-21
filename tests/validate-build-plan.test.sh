@@ -174,6 +174,7 @@ run_validator() {
     PATH="$STUB_DIR:$PATH" \
       DOCKER_STUB_LOG="$log_file" \
       CONFIG_FILE="$config_file" \
+      BAKE_PLAN_OUTPUT="${VALIDATOR_BAKE_PLAN_OUTPUT:-}" \
       ./scripts/validate-build-plan.sh
   ) > "$output_file" 2>&1
   VALIDATOR_STATUS=$?
@@ -217,7 +218,7 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "SBOM=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_TITLE=Validated App"
-  pass "no-push validation exports settings and prints the bake plan"
+  pass "no-push validation exports settings and checks the bake plan"
 }
 
 test_no_push_bake_plan_requires_cache_only_output() {
@@ -254,6 +255,30 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" \
     "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
   pass "attestation controls are exported into the no-push bake plan"
+}
+
+test_config_aware_bake_plan_can_be_written_for_review() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "bake-plan-review-output"
+  review_output="$FIXTURE_DIR/out/review-bake-plan.json"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=review-output-app
+SBOM=true
+PROVENANCE=mode=min
+EOF
+
+  VALIDATOR_BAKE_PLAN_OUTPUT=$review_output
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+  VALIDATOR_BAKE_PLAN_OUTPUT=
+
+  assert_status 0
+  assert_output_contains "Wrote config-aware Buildx bake plan to $review_output"
+  assert_file_contains "$review_output" '"type": "cacheonly"'
+  assert_file_contains "$review_output" '"type": "sbom"'
+  assert_file_contains "$review_output" '"type": "provenance", "mode": "min"'
+  pass "config-aware bake plans can be written as review artifacts"
 }
 
 test_missing_sbom_attestation_is_rejected() {
@@ -666,6 +691,24 @@ EOF
   pass "required .dockerignore patterns are enforced"
 }
 
+test_config_env_glob_dockerignore_pattern_is_enforced() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "dockerignore-config-env-glob"
+  grep -Fxv -- "config/*.env" "$FIXTURE_DIR/.dockerignore" > "$FIXTURE_DIR/.dockerignore.tmp"
+  mv "$FIXTURE_DIR/.dockerignore.tmp" "$FIXTURE_DIR/.dockerignore"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains ".dockerignore is missing required pattern: config/*.env"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "config env globs are required for arbitrary CONFIG_FILE hygiene"
+}
+
 test_subdirectory_context_requires_effective_dockerignore() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "subdirectory-context-missing-dockerignore"
@@ -822,7 +865,7 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=https://github.com/example/app.git"
   assert_file_contains "$FIXTURE_DIR/docker.log" \
     "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
-  pass "remote contexts skip local directory checks and still print the bake plan"
+  pass "remote contexts skip local directory checks and still check the bake plan"
 }
 
 test_git_ssh_remote_context_skips_local_directory_check() {
@@ -841,7 +884,7 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "CONTEXT=git@github.com:example/app.git"
   assert_file_contains "$FIXTURE_DIR/docker.log" \
     "args: <buildx> <bake> <--file> <buildx/docker-bake.hcl> <--print>"
-  pass "git SSH remote contexts skip local directory checks and still print the bake plan"
+  pass "git SSH remote contexts skip local directory checks and still check the bake plan"
 }
 
 test_remote_context_still_requires_template_dockerignore() {
@@ -887,6 +930,7 @@ install_docker_stub
 test_success_uses_no_push_bake_plan
 test_no_push_bake_plan_requires_cache_only_output
 test_attestation_controls_are_visible_in_no_push_bake_plan
+test_config_aware_bake_plan_can_be_written_for_review
 test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
@@ -909,6 +953,7 @@ test_dockerfile_final_symlink_outside_repo_is_rejected_before_bake
 test_repository_template_symlink_outside_repo_is_rejected_before_bake
 test_explicit_missing_config_file_is_rejected_before_bake
 test_required_dockerignore_patterns_are_enforced
+test_config_env_glob_dockerignore_pattern_is_enforced
 test_subdirectory_context_requires_effective_dockerignore
 test_subdirectory_context_dockerignore_patterns_are_enforced
 test_credential_dockerignore_patterns_are_enforced

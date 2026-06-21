@@ -2,8 +2,9 @@
 
 Use this checklist before a project enables registry pushes, multi-platform
 output, SBOM attestations, or provenance attestations. It turns the
-`scripts/validate-build-plan.sh` output into a small review record that can be
-kept with a CI change, release checklist, or pull request.
+`scripts/validate-build-plan.sh` result and optional checked Bake plan artifact
+into a small review record that can be kept with a CI change, release checklist,
+or pull request.
 
 ## Review Command
 
@@ -12,6 +13,7 @@ overrides that the push job will use:
 
 ```bash
 CONFIG_FILE=config/image.env \
+BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
@@ -30,7 +32,7 @@ Record these facts from the successful validator run:
 | --- | --- |
 | Config source | `CONFIG_FILE` points at the intended project config. |
 | Image reference | `${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}` names the intended repository and tag. |
-| Output mode | The printed Bake plan uses `type=cacheonly`, not registry output. |
+| Output mode | The captured Bake plan uses `type=cacheonly`, not registry output. |
 | Context | Local `CONTEXT` and `DOCKERFILE` resolve inside the repository, or a remote context has separate source review. |
 | Ignore file | The selected local context has its own `.dockerignore` with the required config, credential, cache, and output exclusions. |
 | Platforms | A single platform is used for local `--load`; comma-separated platforms are reserved for the validated push wrapper. |
@@ -38,6 +40,8 @@ Record these facts from the successful validator run:
 | Attestations | `SBOM` and `PROVENANCE` match the reviewed rollout stage. |
 
 The success line should read `No-push build plan validation passed for ...`.
+When `BAKE_PLAN_OUTPUT` is set, the validator also writes the checked
+config-aware Bake JSON to that path and prints the artifact path.
 Do not treat a direct `docker buildx bake --file buildx/docker-bake.hcl --print`
 as the review record unless every relevant variable has been exported; direct
 Bake does not load `CONFIG_FILE`.
@@ -55,6 +59,7 @@ The enforced ignore contract includes these patterns:
 
 ```text
 .git
+config/*.env
 config/image.env
 .env
 .env.*
@@ -86,9 +91,11 @@ ignore behavior separately.
 Use one no-push review per rollout step:
 
 1. Validate with `SBOM=false` and `PROVENANCE=false`.
-2. Enable `SBOM=true`, rerun validation, and review the printed plan.
-3. Enable `PROVENANCE=mode=min`, rerun validation, and review generated metadata
-   before publishing outside the intended registry boundary.
+2. Enable `SBOM=true`, rerun validation with `BAKE_PLAN_OUTPUT` set, and review
+   the captured plan.
+3. Enable `PROVENANCE=mode=min`, rerun validation with `BAKE_PLAN_OUTPUT` set,
+   and review generated metadata before publishing outside the intended
+   registry boundary.
 4. Use `PROVENANCE=mode=max` only after reviewing whether the additional
    metadata is acceptable for the project and registry audience.
 

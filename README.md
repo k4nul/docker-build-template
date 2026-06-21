@@ -12,14 +12,16 @@ before anything is pushed.
 This repository is prepared for public collaboration under the [MIT License](LICENSE).
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before opening issues or pull requests.
-Do not commit registry credentials, local `config/image.env`, generated image
-archives, or build cache output.
+Do not commit registry credentials, local non-example `config/*.env` files,
+generated image archives, or build cache output.
 
 ## Quick Use
 
 ```bash
 cp config/image.env.example config/image.env
-CONFIG_FILE=config/image.env ./scripts/validate-build-plan.sh
+CONFIG_FILE=config/image.env \
+BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
+./scripts/validate-build-plan.sh
 CONFIG_FILE=config/image.env ./scripts/build-image.sh
 docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported env only
 ```
@@ -44,7 +46,9 @@ output, SBOMs, or provenance attestations, see
 `scripts/build-config.sh` loads `CONFIG_FILE` when it is set; otherwise it uses
 `config/image.env.example`. Values in the environment take precedence over values
 from the config file, so CI jobs can override tags, registries, platforms, and
-revision metadata without editing files.
+revision metadata without editing files. Keep project-specific config files under
+the existing `config/*.env` ignore contract, or add an equivalent ignore rule for
+any custom config path before validating a local build context.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
@@ -102,7 +106,10 @@ requires `PUSH=false` and checks:
   provenance settings without pushing an image.
 
 Use `scripts/validate-build-plan.sh` when you need a config-aware rendered
-Buildx plan check. A direct
+Buildx plan check. Set `BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json` to keep
+the checked config-aware plan as a review artifact after validation passes.
+`BAKE_PLAN_OUTPUT` is an environment-only validator control, not a
+`config/*.env` key. A direct
 `docker buildx bake --file buildx/docker-bake.hcl --print` command does not read
 `CONFIG_FILE`; it uses Buildx defaults plus any exported variables in the
 environment. The Bake target renders `output=type=cacheonly` while `PUSH=false`
@@ -146,13 +153,13 @@ Keep `SBOM=false` and `PROVENANCE=false` until a no-push plan has been reviewed.
 Validate the final public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`,
 `OCI_REVISION`, and `OCI_LICENSES` values first with attestations disabled.
 When enabling attestations, enable `SBOM=true` and prefer
-`PROVENANCE=mode=min`, rerun no-push validation, and inspect the rendered plan
-before pushing. Review generated metadata for private image names, internal
-paths, source URLs, revision values, and registry details before publishing
-outside the intended registry boundary. The validator catches URL userinfo and
-common token or private-key markers; reviewers must still check for private
-registry names, internal paths, and source metadata that should not be shared
-beyond the intended registry boundary.
+`PROVENANCE=mode=min`, rerun no-push validation with `BAKE_PLAN_OUTPUT` set, and
+inspect the captured plan before pushing. Review generated metadata for private
+image names, internal paths, source URLs, revision values, and registry details
+before publishing outside the intended registry boundary. The validator catches
+URL userinfo and common token or private-key markers; reviewers must still check
+for private registry names, internal paths, and source metadata that should not
+be shared beyond the intended registry boundary.
 
 ## Troubleshooting
 

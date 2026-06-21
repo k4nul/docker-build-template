@@ -2,6 +2,7 @@ out/
 dist/
 build/
 node_modules/
+config/*.env
 config/image.env
 .env
 .env.*

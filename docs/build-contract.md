@@ -32,9 +32,12 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   underscores, and dashes, with each component starting and ending with a
   lowercase letter or number. `IMAGE_TAG` uses Docker tag-safe characters.
 - Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
-  reflect `CONFIG_FILE`. Direct Bake prints use defaults plus exported
-  variables only, so unexported context, Dockerfile, attestation, and OCI
-  metadata values fall back to `buildx/docker-bake.hcl`.
+  reflect `CONFIG_FILE`. Set `BAKE_PLAN_OUTPUT` to persist the checked
+  config-aware plan as review evidence after validation passes; this is an
+  environment-only validator control, not a `config/*.env` key. Direct Bake
+  prints use defaults plus exported variables only, so unexported context,
+  Dockerfile, attestation, and OCI metadata values fall back to
+  `buildx/docker-bake.hcl`.
 
 ## Required Validation
 
@@ -56,9 +59,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Review record: before enabling registry output, multi-platform publishing,
   SBOMs, or provenance, capture the successful no-push validation evidence
   described in [docs/no-push-validation.md](no-push-validation.md). The record
-  should identify the config source, image reference, cache-only Bake output,
-  context and `.dockerignore` state, platforms, public-safe `OCI_*` metadata,
-  and attestation settings.
+  should identify the config source, image reference, captured cache-only Bake
+  output, context and `.dockerignore` state, platforms, public-safe `OCI_*`
+  metadata, and attestation settings.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
   Keep this sequence when adapting the template to CI.
@@ -72,10 +75,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 
 ## Context And Dependencies
 
-- Build context hygiene: keep local configs, dotenv files, credentials, image
-  archives, caches, generated outputs, `.codex`, local agent files, and
-  management-only docs out of the selected local Docker build context through `.dockerignore`
-  at that context root.
+- Build context hygiene: keep local configs, dotenv files, credentials,
+  non-example `config/*.env` files, image archives, caches, generated outputs,
+  `.codex`, local agent files, and management-only docs out of the selected
+  local Docker build context through `.dockerignore` at that context root.
 - Base image dependencies: treat Dockerfile `*_IMAGE` argument defaults as the
   template's dependency inputs. Use explicit tags or digests, do not use
   `latest`, and keep every `docker/Dockerfile*` template under the same
@@ -103,8 +106,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 ## Review Checklist
 
 - Keep `PUSH=false` during local validation and first CI plan review.
-- Confirm `.dockerignore` excludes local config, credentials, caches, generated
-  files, and image archive outputs.
+- Confirm `.dockerignore` excludes local config, non-example `config/*.env`
+  files, credentials, caches, generated files, and image archive outputs.
 - Confirm each Dockerfile used by the template declares OCI metadata arguments
   and label bindings; the validator checks the selected Dockerfile and every
   `docker/Dockerfile*` template.
