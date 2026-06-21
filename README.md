@@ -1,6 +1,6 @@
 # Docker Build Template
 
-Reusable Dockerfile, buildx, and image build/push structure.
+Reusable Dockerfile, Buildx, and image build/push structure.
 
 Use this template when a project needs a repeatable Docker build entrypoint with
 registry pushes disabled by default, configurable image metadata, optional SBOM
