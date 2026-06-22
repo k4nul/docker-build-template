@@ -1,8 +1,8 @@
 {
   "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
-  "current_phase": "multi-platform-release-hardening",
-  "next_phase": "template-maintenance",
+  "current_phase": "template-maintenance",
+  "next_phase": "multi-platform-release-hardening",
   "transition": {
     "intent": "Transition to template maintenance after the multi-platform CI example, no-push review evidence, and registry-publish operator documentation gates validate.",
     "mode": "multi-platform-release-hardening-ready-for-transition",
