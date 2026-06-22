@@ -34,9 +34,10 @@ a temporary `docker` stub on `PATH`, so they can check the wrapper behavior
 without building or pushing an image. These tests verify config parsing,
 environment override precedence, image reference construction, output mode
 selection, no-push validation gates, push-wrapper sequencing, attestation flag
-forwarding, registry prefix safety, context path and Dockerfile symlink checks,
-effective build-context `.dockerignore` requirements, template-wide Dockerfile
-OCI label bindings, and the required supply-chain guidance in
+forwarding, registry prefix safety, platform list validation, context path and
+Dockerfile symlink checks, effective build-context `.dockerignore`
+requirements, template-wide Dockerfile OCI label bindings, and the required
+supply-chain guidance in
 `docs/build-contract.md`.
 
 `scripts/validate-build-plan.sh` checks `docs/build-contract.md` for required
@@ -81,9 +82,10 @@ and common token or private-key markers in public build values,
 credential-shaped registry prefixes, repository-bound local context and
 Dockerfile paths, final Dockerfile symlink resolution, explicit base image tags
 or digests for the selected Dockerfile and repository template Dockerfiles,
-template-wide Dockerfile OCI metadata bindings, required `.dockerignore`
-patterns on the selected local context including non-example `config/*.env`
-files, and required build-contract guidance.
+template-wide Dockerfile OCI metadata bindings, comma-separated platform lists
+without whitespace or empty entries, required `.dockerignore` patterns on the
+selected local context including non-example `config/*.env` files, and required
+build-contract guidance.
 
 When a validation run is being used to approve registry output or attestations,
 capture the review fields in [docs/no-push-validation.md](no-push-validation.md)
@@ -148,6 +150,10 @@ rejected so registry output cannot bypass no-push validation.
   enforced list is in [docs/no-push-validation.md](no-push-validation.md).
 - `REGISTRY must not include credentials or userinfo`: authenticate outside the
   template config and use a slash-terminated registry prefix.
+- `PLATFORMS must not contain whitespace`: remove spaces from comma-separated
+  platform lists.
+- `PLATFORMS must not contain empty comma-separated entries`: remove leading,
+  trailing, or repeated commas from the platform list.
 - `Buildx bake plan is missing explicit no-push output`: restore the Bake target
   output contract so `PUSH=false` renders cache-only output.
 - `docs/build-contract.md is required`: restore the build contract before

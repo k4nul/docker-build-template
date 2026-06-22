@@ -57,7 +57,7 @@ any custom config path before validating a local build context.
 | `IMAGE_TAG` | `0.1.0` | Image tag. |
 | `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must be reviewed separately. |
 | `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. |
-| `PLATFORMS` | `linux/amd64` | Comma-separated Buildx platform list. |
+| `PLATFORMS` | `linux/amd64` | Comma-separated Buildx platform list without spaces or empty entries. |
 | `PUSH` | `false` | Uses `--load` when false; registry `--push` must go through `scripts/push-image.sh`. |
 | `SBOM` | `false` | Set to `true` only after reviewing the no-push plan. |
 | `PROVENANCE` | `false` | Supports `true`, `mode=min`, and `mode=max`. |
@@ -73,7 +73,10 @@ contain credential-shaped userinfo, and must end in `/` when set so the image
 reference cannot silently join the registry namespace and image name. Image
 names must use lowercase Docker repository path components with only letters,
 numbers, periods, underscores, dashes, and slashes, and each path component must
-start and end with a lowercase letter or number. Private registry names,
+start and end with a lowercase letter or number. Platform lists must use
+Docker-style values such as `linux/amd64,linux/arm64`; whitespace, empty comma
+entries, URL syntax, and credential-shaped userinfo are rejected before Docker is
+called. Private registry names,
 internal paths, and overly specific source metadata still require human review
 before publishing outside the intended registry boundary.
 
@@ -85,6 +88,8 @@ requires `PUSH=false` and checks:
 - config shape and supported values.
 - image reference and OCI metadata values do not include URL userinfo or
   obvious credential material.
+- platform lists are comma-separated Docker platform values without whitespace or
+  empty entries.
 - local build context and Dockerfile paths stay inside the repository. Remote
   contexts such as URL or `git@` contexts skip the local directory check and
   need separate source and context-hygiene review; the validator still checks
@@ -179,6 +184,10 @@ be shared beyond the intended registry boundary.
 - `IMAGE_NAME must contain only lowercase`: use a Docker repository path such
   as `team/example-app`; uppercase names and empty slash components are rejected
   before Docker is called.
+- `PLATFORMS must not contain whitespace`: use comma-separated values without
+  spaces, such as `linux/amd64,linux/arm64`.
+- `PLATFORMS must not contain empty comma-separated entries`: remove leading,
+  trailing, or repeated commas from the platform list.
 - `must not contain credential-like token material`: replace token-looking
   metadata with public-safe values before validating or publishing.
 - `Build context must stay inside repository`: use a repository-local context

@@ -31,6 +31,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   whose slash-separated components use only letters, numbers, periods,
   underscores, and dashes, with each component starting and ending with a
   lowercase letter or number. `IMAGE_TAG` uses Docker tag-safe characters.
+- Platform safety: `PLATFORMS` is a comma-separated Docker platform list such as
+  `linux/amd64,linux/arm64`; whitespace, empty comma-separated entries, URL
+  syntax, and credential-shaped userinfo are rejected before Docker is called.
 - Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
   reflect `CONFIG_FILE`. Set `BAKE_PLAN_OUTPUT` to persist the checked
   config-aware plan as review evidence after validation passes; this is an
@@ -44,9 +47,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required OCI metadata argument/label bindings, required `.dockerignore`
-  entries, public-safe image reference and OCI metadata values, attestation
-  controls, explicit cache-only Bake output while `PUSH=false`, and the Buildx
-  bake plan without pushing.
+  entries, public-safe image reference, platform, and OCI metadata values,
+  attestation controls, explicit cache-only Bake output while `PUSH=false`, and
+  the Buildx bake plan without pushing.
   Local context and Dockerfile paths stay inside the repository, so
   parent-directory or host-level paths are rejected before a registry push.
   Dockerfile symlinks are resolved before the repository-bound path check.
@@ -115,6 +118,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   repository.
 - Confirm base image defaults use explicit tags or digests.
 - Confirm registry login happens outside the template scripts.
+- Confirm `PLATFORMS` has no spaces, empty comma-separated entries, URL syntax,
+  or credential-shaped userinfo.
 - Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit
   data before registry publishing.
 - Confirm image identity and OCI metadata values do not contain URL userinfo,

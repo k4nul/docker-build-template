@@ -2,13 +2,13 @@
   "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
   "current_phase": "template-maintenance",
-  "next_phase": "",
+  "next_phase": "multi-platform-release-hardening",
   "transition": {
-    "intent": "Keep the public Docker build template in maintenance after context hygiene, SBOM/provenance modes, and BuildKit secret mount guidance are stable.",
-    "mode": "template-maintenance-no-pending-transition",
+    "intent": "Move from maintenance into the next explicit public supply-chain template scope after the current validation chain passes.",
+    "mode": "template-maintenance-to-multi-platform-release-hardening",
     "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/validate-build-plan.test.sh",
-    "transition_validation_command": "",
-    "decision_rule": "Select a new next_phase and transition_validation_command before routing another phase-transition.",
+    "transition_validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/validate-build-plan.test.sh",
+    "decision_rule": "Route phase-transition only after the current validation chain passes; the transition updates current_phase to multi-platform-release-hardening.",
     "phase_update_files": [
       "docs/instructions/phase-gates.json"
     ]
@@ -65,6 +65,27 @@
       ],
       "exit_criteria": [
         "new template scope is selected"
+      ]
+    },
+    {
+      "id": "multi-platform-release-hardening",
+      "purpose": "Harden reviewed multi-platform publish paths with CI examples, SBOM/provenance review evidence, and registry-publish operator documentation.",
+      "allowed_work": [
+        "multi-platform CI examples",
+        "SBOM and provenance review artifacts",
+        "registry-publish documentation",
+        "no-push validation hardening"
+      ],
+      "blocked_work": [
+        "real registry credentials",
+        "default push behavior",
+        "secret values in build args",
+        "new publish automation without no-push validation evidence"
+      ],
+      "exit_criteria": [
+        "multi-platform publish examples preserve PUSH=false defaults unless the push wrapper is explicit",
+        "SBOM and provenance review artifacts are documented",
+        "registry-publish operator steps reference no-push validation evidence"
       ]
     }
   ],

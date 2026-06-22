@@ -192,6 +192,8 @@ manual review items before publishing outside the intended registry boundary.
 - `REGISTRY`, `IMAGE_NAME`, and `IMAGE_TAG` produce the intended image
   reference. `REGISTRY` is empty or a slash-terminated prefix without URL syntax
   or `user:pass@` userinfo.
+- `PLATFORMS` is comma-separated without spaces or empty entries, such as
+  `linux/amd64,linux/arm64`.
 - `CONTEXT` and `DOCKERFILE` stay inside the repository for local contexts.
   Remote URL or `git@` contexts are reviewed separately because the local path
   check and local `.dockerignore` cannot prove remote context hygiene.

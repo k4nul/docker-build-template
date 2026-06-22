@@ -250,6 +250,22 @@ require_image_name_value() {
   IFS=$old_ifs
 }
 
+require_platforms_value() {
+  require_image_reference_value PLATFORMS "$PLATFORMS"
+
+  case "$PLATFORMS" in
+    *,|,*|*,,*)
+      printf '%s\n' "PLATFORMS must not contain empty comma-separated entries" >&2
+      exit 2
+      ;;
+    *[!A-Za-z0-9._/,-]*)
+      printf '%s\n' \
+        "PLATFORMS must contain only letters, numbers, periods, underscores, dashes, slashes, or commas" >&2
+      exit 2
+      ;;
+  esac
+}
+
 require_single_platform_load() {
   if [ "$PUSH" = "false" ]; then
     case "$PLATFORMS" in
@@ -359,10 +375,12 @@ validate_image_build_settings() {
   require_registry_prefix
   require_image_name_value
   require_image_tag_value
+  require_platforms_value
 
   require_public_build_value REGISTRY "$REGISTRY"
   require_public_build_value IMAGE_NAME "$IMAGE_NAME"
   require_public_build_value IMAGE_TAG "$IMAGE_TAG"
+  require_public_build_value PLATFORMS "$PLATFORMS"
   require_public_build_value OCI_TITLE "$OCI_TITLE"
   require_public_build_value OCI_DESCRIPTION "$OCI_DESCRIPTION"
   require_public_build_value OCI_SOURCE "$OCI_SOURCE"

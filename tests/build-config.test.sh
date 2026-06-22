@@ -367,6 +367,87 @@ EOF
   pass "image repository name path components must have alphanumeric boundaries"
 }
 
+test_invalid_platform_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/invalid-platform.env"
+  output_file="$TEST_ROOT/invalid-platform.out"
+
+  cat > "$config_file" <<'EOF'
+PLATFORMS=linux/amd64, linux/arm64
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "PLATFORMS must not contain whitespace"
+  pass "platform lists reject whitespace before reaching Docker"
+}
+
+test_empty_platform_components_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/empty-platform-component.env"
+  output_file="$TEST_ROOT/empty-platform-component.out"
+
+  cat > "$config_file" <<'EOF'
+PLATFORMS=linux/amd64,,linux/arm64
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "PLATFORMS must not contain empty comma-separated entries"
+  pass "platform lists reject empty comma-separated entries"
+}
+
+test_platform_url_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/platform-url.env"
+  output_file="$TEST_ROOT/platform-url.out"
+
+  cat > "$config_file" <<'EOF'
+PLATFORMS=https://example.com/linux/amd64
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "PLATFORMS must be a Docker image reference value, not a URL"
+  pass "platform lists reject URL syntax before reaching Docker"
+}
+
+test_platform_userinfo_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/platform-userinfo.env"
+  output_file="$TEST_ROOT/platform-userinfo.out"
+
+  cat > "$config_file" <<'EOF'
+PLATFORMS=user:token@linux/amd64
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "PLATFORMS must not include credentials or userinfo"
+  pass "platform lists reject userinfo before reaching Docker"
+}
+
+test_platform_unsupported_characters_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/platform-unsupported-character.env"
+  output_file="$TEST_ROOT/platform-unsupported-character.out"
+
+  cat > "$config_file" <<'EOF'
+PLATFORMS=linux/amd64+debug
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains \
+    "PLATFORMS must contain only letters, numbers, periods, underscores, dashes, slashes, or commas"
+  pass "platform lists reject unsupported characters before reaching Docker"
+}
+
 test_empty_config_values_fall_back_to_defaults() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/empty-values.env"
@@ -430,6 +511,11 @@ test_invalid_image_tag_values_are_rejected
 test_invalid_image_name_characters_are_rejected
 test_empty_image_name_components_are_rejected
 test_image_name_component_boundaries_are_rejected
+test_invalid_platform_values_are_rejected
+test_empty_platform_components_are_rejected
+test_platform_url_values_are_rejected
+test_platform_userinfo_values_are_rejected
+test_platform_unsupported_characters_are_rejected
 test_empty_config_values_fall_back_to_defaults
 test_missing_explicit_config_file_is_rejected
 test_defaults_remain_valid_when_exported_for_buildx
