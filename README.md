@@ -40,6 +40,9 @@ validation, direct Bake limitations, local builds, and the CI push handoff, see
 For the review record to complete before allowing registry pushes, multi-platform
 output, SBOMs, or provenance attestations, see
 [docs/no-push-validation.md](docs/no-push-validation.md).
+Copyable, inactive operator examples are available in
+[examples/ci/github-actions-publish.yml](examples/ci/github-actions-publish.yml)
+and [examples/review/no-push-review.md](examples/review/no-push-review.md).
 
 ## Configuration
 
@@ -133,6 +136,12 @@ stubs, and real Buildx validation boundaries, see
 For a compact approval checklist that captures the successful no-push plan
 before registry publishing, see
 [docs/no-push-validation.md](docs/no-push-validation.md).
+For an inactive multi-platform GitHub Actions example that preserves
+`PUSH=false`, captures `BAKE_PLAN_OUTPUT`, and calls the push wrapper only in an
+explicit publish job, see
+[examples/ci/github-actions-publish.yml](examples/ci/github-actions-publish.yml).
+For a fill-in review artifact, see
+[examples/review/no-push-review.md](examples/review/no-push-review.md).
 
 ## Multi-Platform Builds
 

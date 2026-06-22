@@ -4,6 +4,7 @@
 .codex
 AGENTS.md
 docs/management
+config/*.env
 config/image.env
 .env
 .env.*

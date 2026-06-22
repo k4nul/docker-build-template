@@ -55,7 +55,9 @@ step at the deeper reference docs.
    Capture the review evidence before enabling a push path: image reference,
    cache-only output mode, context and `.dockerignore` status, public-safe
    `OCI_*` metadata, platform list, and attestation settings. The focused
-   checklist is in [docs/no-push-validation.md](no-push-validation.md).
+   checklist is in [docs/no-push-validation.md](no-push-validation.md), and a
+   fill-in record is available at
+   [examples/review/no-push-review.md](../examples/review/no-push-review.md).
 
 4. Build locally only after validation passes:
 
@@ -117,6 +119,11 @@ OCI_REVISION="$CI_COMMIT_SHA" \
 `scripts/push-image.sh` validates with `PUSH=false` first, then exports
 `PUSH=true` internally and runs the shared `docker buildx build --push` command.
 Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected.
+For a copyable GitHub Actions example, start from
+[examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml).
+It is intentionally stored outside `.github/workflows`, runs a no-push plan job
+first, uploads `BAKE_PLAN_OUTPUT`, and gates the publish job behind an explicit
+manual input.
 
 ## Where To Go Next
 
@@ -125,6 +132,10 @@ Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected.
 - [docs/no-push-validation.md](no-push-validation.md) provides the approval
   record to complete before registry pushes, multi-platform output, SBOMs, or
   provenance attestations.
+- [examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml)
+  is an inactive multi-platform CI publish example.
+- [examples/review/no-push-review.md](../examples/review/no-push-review.md)
+  is a fill-in no-push review record.
 - [docs/testing.md](testing.md) lists the shell checks, stubbed tests, real
   Buildx validation, and troubleshooting steps.
 - [docs/maintenance.md](maintenance.md) provides the operator runbook for

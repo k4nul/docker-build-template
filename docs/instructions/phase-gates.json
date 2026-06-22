@@ -2,13 +2,13 @@
   "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
   "current_phase": "multi-platform-release-hardening",
-  "next_phase": "",
+  "next_phase": "template-maintenance",
   "transition": {
-    "intent": "Keep the template in the multi-platform release hardening phase until its CI examples, SBOM/provenance review evidence, and registry-publish operator documentation exit criteria are complete.",
-    "mode": "multi-platform-release-hardening-active",
-    "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/validate-build-plan.test.sh",
-    "transition_validation_command": "",
-    "decision_rule": "Do not route phase-transition while next_phase is empty; select a new next_phase only after multi-platform-release-hardening exit criteria are complete.",
+    "intent": "Transition to template maintenance after the multi-platform CI example, no-push review evidence, and registry-publish operator documentation gates validate.",
+    "mode": "multi-platform-release-hardening-ready-for-transition",
+    "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/ci-examples.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/ci-examples.test.sh && bash tests/validate-build-plan.test.sh",
+    "transition_validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/ci-examples.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/ci-examples.test.sh && bash tests/validate-build-plan.test.sh",
+    "decision_rule": "Route phase-transition after the validation command passes; next_phase is selected because the multi-platform-release-hardening exit criteria now have CI examples, review evidence, and registry-publish operator documentation.",
     "phase_update_files": [
       "docs/instructions/phase-gates.json"
     ]
@@ -98,6 +98,7 @@
       "evidence": [
         "docs/build-contract.md",
         ".dockerignore",
+        "examples/app/.dockerignore",
         "scripts/validate-build-plan.sh",
         "tests/validate-build-plan.test.sh"
       ],
@@ -116,6 +117,7 @@
         "scripts/build-image.sh",
         "scripts/validate-build-plan.sh",
         "tests/build-image.test.sh",
+        "tests/ci-examples.test.sh",
         "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document SBOM/provenance modes before moving to template-maintenance."
@@ -128,9 +130,24 @@
       "evidence": [
         "docs/build-contract.md",
         "scripts/validate-build-plan.sh",
+        "tests/ci-examples.test.sh",
         "tests/validate-build-plan.test.sh"
       ],
       "on_failure": "Stay in context-provenance-hardening and document BuildKit secret mount guidance before moving to template-maintenance."
+    },
+    {
+      "id": "multi-platform-ci-examples-documented",
+      "status": "machine-check",
+      "required_for_transition": true,
+      "description": "Multi-platform CI publish examples must preserve PUSH=false defaults, capture no-push review evidence, and use the validated push wrapper for registry output.",
+      "evidence": [
+        "examples/ci/github-actions-publish.yml",
+        "examples/review/no-push-review.md",
+        "docs/maintenance.md",
+        "docs/no-push-validation.md",
+        "tests/ci-examples.test.sh"
+      ],
+      "on_failure": "Stay in multi-platform-release-hardening until CI examples and review artifacts preserve the no-push validation boundary."
     }
   ]
 }

@@ -20,7 +20,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Attestation defaults: `SBOM=false` and `PROVENANCE=false` keep generated
   metadata disabled until a project explicitly opts in after no-push plan
   validation.
-- CI integration: call `scripts/push-image.sh` from Jenkins or another runner after registry login
+- CI integration: capture a no-push Buildx plan artifact before registry output,
+  then call `scripts/push-image.sh` from GitHub Actions, Jenkins, or another
+  runner after registry login.
 - Image metadata: set the `OCI_*` inputs in `config/image.env` or the runner
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
@@ -64,7 +66,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   described in [docs/no-push-validation.md](no-push-validation.md). The record
   should identify the config source, image reference, captured cache-only Bake
   output, context and `.dockerignore` state, platforms, public-safe `OCI_*`
-  metadata, and attestation settings.
+  metadata, and attestation settings. The fill-in example at
+  [examples/review/no-push-review.md](../examples/review/no-push-review.md)
+  can be copied into a release checklist or pull request.
 - Push wrapper behavior: `scripts/push-image.sh` always validates with
   `PUSH=false` first, then exports `PUSH=true` and runs the shared build command.
   Keep this sequence when adapting the template to CI.
@@ -72,6 +76,12 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   output cannot bypass no-push validation. Direct local `scripts/build-image.sh`
   calls with comma-separated `PLATFORMS` are also rejected while `PUSH=false`;
   multi-platform output must use the validated push wrapper.
+- CI publish examples: keep publish examples inactive by default, preserve
+  `PUSH=false` unless `scripts/push-image.sh` is the explicit command, upload
+  the checked `BAKE_PLAN_OUTPUT`, and avoid hardcoded registry credentials. The
+  copyable example at
+  [examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml)
+  follows that boundary.
 - Maintenance runbook: keep [docs/maintenance.md](maintenance.md) aligned with
   this contract so users can follow the same no-push validation, CI override,
   multi-platform, and attestation review sequence without reading the scripts.
@@ -126,3 +136,5 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   package tokens, or private keys.
 - Confirm manual review has cleared private registry names, internal paths, and
   source metadata before publishing attestations outside the intended boundary.
+- Confirm CI examples or project workflows upload the no-push plan artifact and
+  use `scripts/push-image.sh` for registry output.

@@ -292,6 +292,9 @@ require_build_contract_guidance() {
     "PROVENANCE=mode=max" \
     "attestation publishing" \
     "private image names" \
+    "CI publish examples:" \
+    "checked \`BAKE_PLAN_OUTPUT\`" \
+    "hardcoded registry credentials" \
     "Direct \`scripts/build-image.sh\` calls with \`PUSH=true\` are rejected"
   do
     require_file_contains docs/build-contract.md "$required_guidance"

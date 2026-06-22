@@ -4,7 +4,10 @@ Use this checklist before a project enables registry pushes, multi-platform
 output, SBOM attestations, or provenance attestations. It turns the
 `scripts/validate-build-plan.sh` result and optional checked Bake plan artifact
 into a small review record that can be kept with a CI change, release checklist,
-or pull request.
+or pull request. A fill-in template is available at
+[examples/review/no-push-review.md](../examples/review/no-push-review.md), and
+an inactive GitHub Actions publish example is available at
+[examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml).
 
 ## Review Command
 
@@ -120,3 +123,6 @@ The push wrapper reruns no-push validation with `PUSH=false`, then exports
 `PUSH=true` for the shared `docker buildx build --push` command. Direct
 `scripts/build-image.sh` calls with `PUSH=true` are rejected so the registry
 path cannot bypass this approval boundary.
+When adapting the GitHub Actions example, keep the no-push plan artifact upload
+before the publish job, keep `PUSH=false` in the workflow environment, and let
+only `scripts/push-image.sh` enter the registry output path.

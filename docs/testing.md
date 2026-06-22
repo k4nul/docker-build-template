@@ -17,6 +17,7 @@ bash -n \
   scripts/validate-build-plan.sh \
   tests/build-config.test.sh \
   tests/build-image.test.sh \
+  tests/ci-examples.test.sh \
   tests/validate-build-plan.test.sh
 ```
 
@@ -25,6 +26,7 @@ Then run the template test suite:
 ```bash
 bash tests/build-config.test.sh
 bash tests/build-image.test.sh
+bash tests/ci-examples.test.sh
 bash tests/validate-build-plan.test.sh
 ```
 
@@ -39,6 +41,9 @@ Dockerfile symlink checks, effective build-context `.dockerignore`
 requirements, template-wide Dockerfile OCI label bindings, and the required
 supply-chain guidance in
 `docs/build-contract.md`.
+`tests/ci-examples.test.sh` checks that the inactive CI publish example keeps
+`PUSH=false`, captures `BAKE_PLAN_OUTPUT`, uses the validated push wrapper for
+registry output, and links the no-push review template from the operator docs.
 
 `scripts/validate-build-plan.sh` checks `docs/build-contract.md` for required
 literal guidance phrases before it renders and checks a Buildx plan. When
@@ -123,6 +128,7 @@ Docker client or CI secret store:
 ```bash
 CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
+OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
 ./scripts/push-image.sh
 ```
@@ -131,6 +137,11 @@ OCI_REVISION="$CI_COMMIT_SHA" \
 `scripts/validate-build-plan.sh`, then exports `PUSH=true` before running the
 shared build command. Direct `scripts/build-image.sh` calls with `PUSH=true` are
 rejected so registry output cannot bypass no-push validation.
+For CI wiring, use
+[examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml)
+as an inactive starting point and keep
+[examples/review/no-push-review.md](../examples/review/no-push-review.md) or an
+equivalent record with the release change.
 
 ## Validation Troubleshooting
 

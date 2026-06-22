@@ -115,6 +115,14 @@ push path cannot bypass no-push validation. The Bake target also keeps
 Direct `scripts/build-image.sh` calls with `PUSH=true` are rejected; `PUSH=true`
 is an internal push-wrapper phase, not the value to use for standalone
 validation.
+The inactive example at
+[examples/ci/github-actions-publish.yml](../examples/ci/github-actions-publish.yml)
+shows a multi-platform GitHub Actions handoff that captures
+`BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json` before the publish job and keeps
+the actual registry output behind `scripts/push-image.sh`. Keep the matching
+review evidence in
+[examples/review/no-push-review.md](../examples/review/no-push-review.md) or an
+equivalent release checklist.
 
 ## Multi-Platform Publishing
 
@@ -208,3 +216,6 @@ manual review items before publishing outside the intended registry boundary.
   token-like strings, or private keys, and manual review has cleared any private
   registry names or internal paths.
 - `SBOM` and `PROVENANCE` settings match the reviewed Buildx plan.
+- The CI publish example or project-specific workflow preserves `PUSH=false`
+  defaults, uploads the no-push plan evidence, and calls `scripts/push-image.sh`
+  for registry output.
