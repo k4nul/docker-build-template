@@ -104,6 +104,25 @@ require_build_paths() {
   require_repo_bound_path "Dockerfile" "$DOCKERFILE" "$resolved_dockerfile"
 }
 
+for_each_repository_template_dockerfile() {
+  template_check_function=$1
+
+  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
+    if [ ! -f "$template_dockerfile" ]; then
+      continue
+    fi
+
+    "$template_check_function" "$template_dockerfile"
+  done
+}
+
+require_template_dockerfile_path() {
+  template_dockerfile=$1
+
+  resolved_template_dockerfile=$(resolve_existing_file "$template_dockerfile")
+  require_repo_bound_path "Dockerfile" "$template_dockerfile" "$resolved_template_dockerfile"
+}
+
 require_dockerfile_base_image_defaults() {
   dockerfile_to_check=$1
   base_image_defaults=$(grep -E '^ARG[[:space:]]+[A-Za-z0-9_]*IMAGE=' "$dockerfile_to_check" || true)
@@ -154,24 +173,11 @@ require_dockerfile_base_image_defaults() {
 }
 
 require_repository_template_paths() {
-  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
-    if [ ! -f "$template_dockerfile" ]; then
-      continue
-    fi
-
-    resolved_template_dockerfile=$(resolve_existing_file "$template_dockerfile")
-    require_repo_bound_path "Dockerfile" "$template_dockerfile" "$resolved_template_dockerfile"
-  done
+  for_each_repository_template_dockerfile require_template_dockerfile_path
 }
 
 require_repository_template_base_image_defaults() {
-  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
-    if [ ! -f "$template_dockerfile" ]; then
-      continue
-    fi
-
-    require_dockerfile_base_image_defaults "$template_dockerfile"
-  done
+  for_each_repository_template_dockerfile require_dockerfile_base_image_defaults
 }
 
 require_dockerfile_oci_metadata() {
@@ -205,13 +211,7 @@ require_dockerfile_oci_metadata() {
 }
 
 require_repository_template_oci_metadata() {
-  for template_dockerfile in docker/Dockerfile docker/Dockerfile.*; do
-    if [ ! -f "$template_dockerfile" ]; then
-      continue
-    fi
-
-    require_dockerfile_oci_metadata "$template_dockerfile"
-  done
+  for_each_repository_template_dockerfile require_dockerfile_oci_metadata
 }
 
 require_context_hygiene_contract() {
