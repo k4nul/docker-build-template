@@ -268,6 +268,38 @@ EOF
   pass "token-like metadata is rejected before build args or labels"
 }
 
+test_context_url_userinfo_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/context-userinfo.env"
+  output_file="$TEST_ROOT/context-userinfo.out"
+
+  cat > "$config_file" <<'EOF'
+CONTEXT=https://user:token@example.com/private/repository.git
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "CONTEXT must not include URL userinfo or credentials"
+  pass "remote context URL userinfo is rejected before Buildx plan rendering"
+}
+
+test_dockerfile_token_like_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/dockerfile-token-like.env"
+  output_file="$TEST_ROOT/dockerfile-token-like.out"
+
+  cat > "$config_file" <<'EOF'
+DOCKERFILE=docker/ghp_exampletokenmustnotbeused.Dockerfile
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "DOCKERFILE must not contain credential-like token material"
+  pass "Dockerfile path token markers are rejected before Buildx plan rendering"
+}
+
 test_registry_userinfo_prefix_is_rejected() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/registry-userinfo.env"
@@ -505,6 +537,8 @@ test_unsupported_config_keys_are_rejected
 test_invalid_boolean_and_provenance_values_are_rejected
 test_url_userinfo_config_values_are_rejected
 test_token_like_config_values_are_rejected
+test_context_url_userinfo_values_are_rejected
+test_dockerfile_token_like_values_are_rejected
 test_registry_userinfo_prefix_is_rejected
 test_registry_prefix_requires_trailing_slash
 test_invalid_image_tag_values_are_rejected

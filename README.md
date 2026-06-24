@@ -58,8 +58,8 @@ any custom config path before validating a local build context.
 | `REGISTRY` | empty | Optional slash-terminated registry prefix, such as `ghcr.io/acme/`. |
 | `IMAGE_NAME` | `example-app` | Lowercase image repository path, such as `team/example-app`. |
 | `IMAGE_TAG` | `0.1.0` | Image tag. |
-| `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must be reviewed separately. |
-| `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. |
+| `CONTEXT` | `.` | Build context. Local paths must stay inside the repository; remote contexts are allowed but must not embed credentials and must be reviewed separately. |
+| `DOCKERFILE` | `docker/Dockerfile` | Dockerfile path. Do not include credential-like material in path values. |
 | `PLATFORMS` | `linux/amd64` | Comma-separated Buildx platform list without spaces or empty entries. |
 | `PUSH` | `false` | Uses `--load` when false; registry `--push` must go through `scripts/push-image.sh`. |
 | `SBOM` | `false` | Set to `true` only after reviewing the no-push plan. |
@@ -69,10 +69,10 @@ any custom config path before validating a local build context.
 The computed image reference is `${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}`. Do not
 store registry credentials in `config/image.env`; authenticate with the registry
 through the Docker client or CI secret store before running a push job. Values
-that flow into image references, build arguments, or OCI labels are public build
-metadata; validation rejects URL userinfo and common token or private-key
-markers before Docker is called. Registry prefixes must not be URLs, must not
-contain credential-shaped userinfo, and must end in `/` when set so the image
+that flow into image references, build path settings, build arguments, or OCI
+labels are public build metadata; validation rejects URL userinfo and common
+token or private-key markers before Docker is called. Registry prefixes must not
+be URLs, must not contain credential-shaped userinfo, and must end in `/` when set so the image
 reference cannot silently join the registry namespace and image name. Image
 names must use lowercase Docker repository path components with only letters,
 numbers, periods, underscores, dashes, and slashes, and each path component must
@@ -89,8 +89,8 @@ Run `scripts/validate-build-plan.sh` before enabling a registry push. The script
 requires `PUSH=false` and checks:
 
 - config shape and supported values.
-- image reference and OCI metadata values do not include URL userinfo or
-  obvious credential material.
+- image reference, build path, and OCI metadata values do not include URL
+  userinfo or obvious credential material.
 - platform lists are comma-separated Docker platform values without whitespace or
   empty entries.
 - local build context and Dockerfile paths stay inside the repository. Remote
@@ -185,7 +185,8 @@ be shared beyond the intended registry boundary.
   `scripts/build-image.sh`, or validate first and use `scripts/push-image.sh`
   for multi-platform registry output.
 - `must not include URL userinfo or credentials`: remove embedded usernames,
-  passwords, or tokens from public image reference and OCI metadata values.
+  passwords, or tokens from public image reference, build path, and OCI metadata
+  values.
 - `REGISTRY must not include credentials or userinfo`: remove `user:pass@`
   style registry prefixes and authenticate outside the config file.
 - `REGISTRY must be empty or end with /`: use a real prefix such as

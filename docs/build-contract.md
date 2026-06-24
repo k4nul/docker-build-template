@@ -36,6 +36,10 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - Platform safety: `PLATFORMS` is a comma-separated Docker platform list such as
   `linux/amd64,linux/arm64`; whitespace, empty comma-separated entries, URL
   syntax, and credential-shaped userinfo are rejected before Docker is called.
+- Build path safety: `CONTEXT` and `DOCKERFILE` values are rendered into Buildx
+  plans and logs, so they must not include URL userinfo or obvious
+  token/private-key markers. Remote context values still require separate source
+  and context-hygiene review.
 - Config-aware review: use `scripts/validate-build-plan.sh` when the plan must
   reflect `CONFIG_FILE`. Set `BAKE_PLAN_OUTPUT` to persist the checked
   config-aware plan as review evidence after validation passes; this is an
@@ -49,7 +53,7 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 - No-push validation: run `scripts/validate-build-plan.sh` before registry push
   jobs. The validator checks config shape, local context and Dockerfile paths,
   required OCI metadata argument/label bindings, required `.dockerignore`
-  entries, public-safe image reference, platform, and OCI metadata values,
+  entries, public-safe image reference, build path, platform, and OCI metadata values,
   attestation controls, explicit cache-only Bake output while `PUSH=false`, and
   the Buildx bake plan without pushing.
   Local context and Dockerfile paths stay inside the repository, so
@@ -60,7 +64,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   Remote contexts such as URL or `git@` contexts are allowed by the local path
   gate and require separate source and context-hygiene review. The validator
   still checks the template repository's root `.dockerignore`; that does not
-  prove the remote source has equivalent ignore behavior.
+  prove the remote source has equivalent ignore behavior. Remote context values
+  must not contain URL userinfo or token-like material.
 - Review record: before enabling registry output, multi-platform publishing,
   SBOMs, or provenance, capture the successful no-push validation evidence
   described in [docs/no-push-validation.md](no-push-validation.md). The record
@@ -104,8 +109,9 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   keys through build arguments, labels, or copied files. Use BuildKit secret
   mounts such as `--secret` in project-specific builds that genuinely need
   short-lived credentials, and keep those secret files out of Git and the build
-  context. Public build values that become image references, build arguments, or
-  labels must not include URL userinfo or obvious token/private-key markers.
+  context. Public build values that become image references, build path settings,
+  build arguments, or labels must not include URL userinfo or obvious
+  token/private-key markers.
 - SBOM and provenance: keep `SBOM=false` and `PROVENANCE=false` until a no-push
   plan has been reviewed. Use `SBOM=true` to include an SBOM attestation and
   prefer `PROVENANCE=mode=min` before `PROVENANCE=mode=max`. Review generated
@@ -126,6 +132,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   `docker/Dockerfile*` template.
 - Confirm Dockerfile symlinks and the selected local context resolve inside the
   repository.
+- Confirm `CONTEXT` and `DOCKERFILE` values do not contain URL userinfo, package
+  tokens, or private keys before preserving a Buildx plan as review evidence.
 - Confirm base image defaults use explicit tags or digests.
 - Confirm registry login happens outside the template scripts.
 - Confirm `PLATFORMS` has no spaces, empty comma-separated entries, URL syntax,

@@ -36,7 +36,7 @@ Record these facts from the successful validator run:
 | Config source | `CONFIG_FILE` points at the intended project config. |
 | Image reference | `${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}` names the intended repository and tag. |
 | Output mode | The captured Bake plan uses `type=cacheonly`, not registry output. |
-| Context | Local `CONTEXT` and `DOCKERFILE` resolve inside the repository, or a remote context has separate source review. |
+| Context | Local `CONTEXT` and `DOCKERFILE` resolve inside the repository, or a remote context has separate source review; these values must not include embedded credentials or token-like material. |
 | Ignore file | The selected local context has its own `.dockerignore` with the required config, credential, cache, and output exclusions. |
 | Platforms | Platform values are comma-separated without spaces or empty entries; a single platform is used for local `--load`, and comma-separated platforms are reserved for the validated push wrapper. |
 | Metadata | `OCI_SOURCE`, `OCI_REVISION`, and other `OCI_*` values are public-safe and do not include credentials or private paths. |
@@ -87,7 +87,8 @@ id_ed25519
 ```
 
 Before approving a remote context, review that remote source and its own context
-ignore behavior separately.
+ignore behavior separately. Do not encode credentials in the remote `CONTEXT`;
+authenticate through the builder environment or CI secret store instead.
 
 ## Attestation Rollout Order
 

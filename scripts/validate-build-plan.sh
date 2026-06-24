@@ -276,6 +276,9 @@ require_build_contract_guidance() {
     "local configs, dotenv files, credentials" \
     'through `.dockerignore`' \
     "context and Dockerfile paths stay inside the repository" \
+    "Build path safety:" \
+    "Remote context values" \
+    "must not contain URL userinfo or token-like material" \
     "Base image dependencies:" \
     "Dockerfile \`*_IMAGE\` argument defaults" \
     "Use explicit tags or digests" \
@@ -284,6 +287,7 @@ require_build_contract_guidance() {
     "Secret handling:" \
     "do not pass registry credentials, package tokens, or private" \
     "BuildKit secret" \
+    "build path settings" \
     "build arguments, labels, or copied files" \
     "SBOM and provenance:" \
     "SBOM=false" \

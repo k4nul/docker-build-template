@@ -380,6 +380,8 @@ validate_image_build_settings() {
   require_public_build_value REGISTRY "$REGISTRY"
   require_public_build_value IMAGE_NAME "$IMAGE_NAME"
   require_public_build_value IMAGE_TAG "$IMAGE_TAG"
+  require_public_build_value CONTEXT "$CONTEXT"
+  require_public_build_value DOCKERFILE "$DOCKERFILE"
   require_public_build_value PLATFORMS "$PLATFORMS"
   require_public_build_value OCI_TITLE "$OCI_TITLE"
   require_public_build_value OCI_DESCRIPTION "$OCI_DESCRIPTION"
