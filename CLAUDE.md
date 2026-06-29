@@ -5,13 +5,14 @@ Claude Code entry point for `devops-docker-build-template`.
 This file is optimized for Claude Code. It preserves the same instruction routing as `AGENTS.md`; do not treat it as a separate policy layer.
 
 ## Claude Role
-- Use Claude Code for code review, inspection, risk analysis, and validation planning.
+- Use Claude Code for code review, inspection, security review, risk analysis, and validation planning.
+- Security review is required for changed code and configuration; check auth, permissions, secrets, injection, unsafe IO/network/database use, dependency, CI/CD, and infrastructure risks relevant to the task.
 - Do not treat Claude Code as the default implementation agent unless the user explicitly asks for implementation.
-- Record review and inspection findings in `docs/management/REVIEW_FINDINGS.json` so Codex can read them.
+- Record review, inspection, and security findings in `docs/management/REVIEW_FINDINGS.json` so Codex can read them.
 
 ## Codex Handoff
 - Codex must read `docs/management/REVIEW_FINDINGS.json` before automation implementation work.
-- Codex implementation work must resolve active Claude Code findings first, ordered by severity, unless the user explicitly overrides that priority.
+- Codex implementation work must fix or otherwise resolve active Claude Code review and security findings first, ordered by severity, unless the user explicitly overrides that priority.
 - When a finding is resolved, update its status and keep the evidence or validation note in the findings file.
 
 ## Project

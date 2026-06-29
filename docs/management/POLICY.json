@@ -29,11 +29,17 @@
   },
   "reviewWorkflowPolicy": {
     "reviewAgent": "Claude Code",
-    "reviewMode": "code_review_and_inspection",
+    "reviewMode": "code_review_inspection_and_security_review",
+    "reviewScope": [
+      "code_review",
+      "code_inspection",
+      "security_review"
+    ],
     "findingInstructionFile": "docs/management/REVIEW_FINDINGS.json",
-    "findingWriteRule": "Claude Code records review and inspection findings in the findings file instead of implementing by default.",
+    "findingWriteRule": "Claude Code records review, inspection, and security findings in the findings file instead of implementing by default.",
+    "securityReviewRule": "Claude Code must include security review for changed code and configuration, focusing on auth, permissions, secrets, injection, unsafe IO/network/database use, dependencies, CI/CD, and infrastructure defaults relevant to the task.",
     "codexReadRequirement": "Codex must read the findings file before automation implementation work.",
-    "codexPriorityRule": "Codex resolves active Claude Code findings before other implementation tasks unless the user explicitly overrides the priority."
+    "codexPriorityRule": "Codex fixes or otherwise resolves active Claude Code review and security findings before other implementation tasks unless the user explicitly overrides the priority."
   },
   "commitPolicy": {
     "messageFormat": "type(scope): subject",
