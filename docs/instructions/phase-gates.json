@@ -1,14 +1,14 @@
 {
   "schema_version": "1.1.0",
   "project": "devops/docker-build-template",
-  "current_phase": "multi-platform-release-hardening",
-  "next_phase": "multi-platform-release-hardening",
+  "current_phase": "template-maintenance",
+  "next_phase": "",
   "transition": {
-    "intent": "Transition to template maintenance after the multi-platform CI example, no-push review evidence, and registry-publish operator documentation gates validate.",
-    "mode": "multi-platform-release-hardening-ready-for-transition",
+    "intent": "Maintain the public Docker build template after the multi-platform CI example, no-push review evidence, and registry-publish operator documentation gates validate.",
+    "mode": "template-maintenance",
     "validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/ci-examples.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/ci-examples.test.sh && bash tests/validate-build-plan.test.sh",
     "transition_validation_command": "bash -n scripts/build-config.sh scripts/build-image.sh scripts/push-image.sh scripts/validate-build-plan.sh tests/build-config.test.sh tests/build-image.test.sh tests/ci-examples.test.sh tests/validate-build-plan.test.sh && scripts/validate-build-plan.sh && bash tests/build-config.test.sh && bash tests/build-image.test.sh && bash tests/ci-examples.test.sh && bash tests/validate-build-plan.test.sh",
-    "decision_rule": "Route phase-transition after the validation command passes; template-maintenance is selected because the multi-platform-release-hardening exit criteria now have CI examples, review evidence, and registry-publish operator documentation.",
+    "decision_rule": "Stay in template-maintenance until an explicit new template scope is selected.",
     "phase_update_files": [
       "docs/instructions/phase-gates.json"
     ]
