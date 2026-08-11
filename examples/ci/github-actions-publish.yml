@@ -36,12 +36,14 @@ jobs:
         shell: bash
         run: |
           image_ref="ghcr.io/${GITHUB_REPOSITORY,,}"
+          created_at=$(date -u -d "@$(git log -1 --format=%ct)" +%Y-%m-%dT%H:%M:%SZ)
           {
             echo "REGISTRY=${image_ref%/*}/"
             echo "IMAGE_NAME=${image_ref##*/}"
             echo "IMAGE_TAG=${GITHUB_SHA}"
             echo "OCI_SOURCE=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
             echo "OCI_REVISION=${GITHUB_SHA}"
+            echo "OCI_CREATED=${created_at}"
           } >> "$GITHUB_ENV"
 
       - name: Validate no-push Buildx plan
@@ -78,12 +80,14 @@ jobs:
         shell: bash
         run: |
           image_ref="ghcr.io/${GITHUB_REPOSITORY,,}"
+          created_at=$(date -u -d "@$(git log -1 --format=%ct)" +%Y-%m-%dT%H:%M:%SZ)
           {
             echo "REGISTRY=${image_ref%/*}/"
             echo "IMAGE_NAME=${image_ref##*/}"
             echo "IMAGE_TAG=${GITHUB_SHA}"
             echo "OCI_SOURCE=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
             echo "OCI_REVISION=${GITHUB_SHA}"
+            echo "OCI_CREATED=${created_at}"
           } >> "$GITHUB_ENV"
 
       - name: Publish image

@@ -8,7 +8,7 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
 
 ## Inputs And Outputs
 
-- Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `SBOM`, `PROVENANCE`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_LICENSES`
+- Inputs: `REGISTRY`, `IMAGE_NAME`, `IMAGE_TAG`, `CONTEXT`, `DOCKERFILE`, `PLATFORMS`, `PUSH`, `SBOM`, `PROVENANCE`, `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, `OCI_CREATED`, `OCI_LICENSES`
 - Default output: local loaded image when `PUSH=false` and `PLATFORMS` names a
   single platform
 - Registry output: pushed image when `PUSH=true` through the validated push wrapper
@@ -27,6 +27,13 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   environment to stamp Open Containers image labels without editing Dockerfiles.
   Keep defaults public and generic until a project has a real source URL and
   revision value from CI.
+- Reproducible metadata: `OCI_REVISION` and the validated `OCI_CREATED` value
+  are passed to every template Dockerfile and the Bake plan. `OCI_CREATED` must
+  be a UTC RFC 3339 timestamp such as `2026-01-02T03:04:05Z`; fractional seconds
+  are allowed, and a `+00:00` suffix is normalized to `Z`. It must not be generated from the build invocation time.
+  The generic epoch default is deterministic, but release automation should set
+  a public source revision and a creation timestamp derived from the reviewed
+  source or release record.
 - Image reference safety: `REGISTRY` is empty or a slash-terminated Docker image
   prefix such as `ghcr.io/acme/`; it is not a URL and does not contain
   credential-shaped userinfo. `IMAGE_NAME` is a lowercase Docker repository path
@@ -140,6 +147,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   or credential-shaped userinfo.
 - Confirm `OCI_SOURCE` and `OCI_REVISION` come from public source and CI commit
   data before registry publishing.
+- Confirm `OCI_CREATED` is a reviewed UTC RFC 3339 source or release timestamp,
+  rather than the current build invocation time.
 - Confirm image identity and OCI metadata values do not contain URL userinfo,
   package tokens, or private keys.
 - Confirm manual review has cleared private registry names, internal paths, and

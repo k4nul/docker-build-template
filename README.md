@@ -29,8 +29,9 @@ docker buildx bake --file buildx/docker-bake.hcl --print # defaults or exported 
 Edit `config/image.env` for the target registry, image name, tag, context,
 Dockerfile, platforms, attestation modes, and OCI image metadata. Keep
 `PUSH=false`, `SBOM=false`, and `PROVENANCE=false` until the no-push plan is
-validated. Replace the example `OCI_SOURCE` and `OCI_REVISION` values with the
-public source URL and CI commit SHA before publishing. After registry login,
+validated. Replace the example `OCI_SOURCE`, `OCI_REVISION`, and `OCI_CREATED`
+values with the public source URL, CI commit SHA, and reviewed UTC creation
+timestamp before publishing. After registry login,
 use `CONFIG_FILE=config/image.env ./scripts/push-image.sh` for the push path so
 the wrapper can rerun no-push validation before enabling registry output.
 
@@ -65,6 +66,7 @@ any custom config path before validating a local build context.
 | `SBOM` | `false` | Set to `true` only after reviewing the no-push plan. |
 | `PROVENANCE` | `false` | Supports `true`, `mode=min`, and `mode=max`. |
 | `OCI_*` | example values | Open Containers image label values passed as build arguments. |
+| `OCI_CREATED` | `1970-01-01T00:00:00Z` | UTC RFC 3339 creation timestamp; set it from reviewed source or release metadata in CI. |
 
 The computed image reference is `${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}`. Do not
 store registry credentials in `config/image.env`; authenticate with the registry
@@ -157,15 +159,17 @@ lists while `PUSH=false`; validate the plan first, then use
 ## Metadata And Attestations
 
 The Dockerfiles accept `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`,
-`OCI_REVISION`, and `OCI_LICENSES` as build arguments and stamp them into
+`OCI_REVISION`, `OCI_CREATED`, and `OCI_LICENSES` as build arguments and stamp them into
 Open Containers labels. CI should set `OCI_SOURCE` to the public repository URL
-and `OCI_REVISION` to the commit SHA being built. Do not include credentialed
+and `OCI_REVISION` to the commit SHA being built. Set `OCI_CREATED` to a UTC RFC
+3339 source or release timestamp, not the build invocation time, so the rendered
+Buildx plan stays reproducible for identical inputs. Do not include credentialed
 URLs, package tokens, private keys, internal paths, or private registry names in
 these values.
 
 Keep `SBOM=false` and `PROVENANCE=false` until a no-push plan has been reviewed.
 Validate the final public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`,
-`OCI_REVISION`, and `OCI_LICENSES` values first with attestations disabled.
+`OCI_REVISION`, `OCI_CREATED`, and `OCI_LICENSES` values first with attestations disabled.
 When enabling attestations, enable `SBOM=true` and prefer
 `PROVENANCE=mode=min`, rerun no-push validation with `BAKE_PLAN_OUTPUT` set, and
 inspect the captured plan before pushing. Review generated metadata for private

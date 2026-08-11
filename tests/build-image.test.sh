@@ -250,6 +250,7 @@ EOF
 
   assert_log_contains "args: <buildx> <build>"
   assert_log_contains "<--tag> <example-app:0.1.0>"
+  assert_log_contains "<--build-arg> <OCI_CREATED=1970-01-01T00:00:00Z>"
   assert_log_contains "<--load> <.>"
   assert_log_not_contains "<--push>"
   assert_log_not_contains "<--sbom>"

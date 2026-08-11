@@ -28,6 +28,7 @@ step at the deeper reference docs.
    OCI_DESCRIPTION=Container image for My App
    OCI_SOURCE=https://example.com/team/my-app
    OCI_REVISION=<commit-sha-from-ci>
+   OCI_CREATED=<source-or-release-timestamp-in-utc-rfc-3339>
    OCI_LICENSES=MIT
    ```
 
@@ -72,7 +73,7 @@ step at the deeper reference docs.
 
 `scripts/build-config.sh` loads `CONFIG_FILE` when it is set; otherwise it uses
 `config/image.env.example`. Environment variables win over values from the config
-file. This lets CI override `IMAGE_TAG`, `OCI_REVISION`, platforms, and
+file. This lets CI override `IMAGE_TAG`, `OCI_REVISION`, `OCI_CREATED`, platforms, and
 attestation settings without editing committed files.
 
 Do not store registry credentials in `config/image.env`. Authenticate through
@@ -113,6 +114,7 @@ CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/push-image.sh
 ```
 

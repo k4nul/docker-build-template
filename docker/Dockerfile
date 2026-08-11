@@ -6,11 +6,13 @@ ARG OCI_TITLE="Example App"
 ARG OCI_DESCRIPTION="Reusable Docker build template image"
 ARG OCI_SOURCE="https://example.com/repository"
 ARG OCI_REVISION="unknown"
+ARG OCI_CREATED="1970-01-01T00:00:00Z"
 ARG OCI_LICENSES="MIT"
 LABEL org.opencontainers.image.title="${OCI_TITLE}" \
       org.opencontainers.image.description="${OCI_DESCRIPTION}" \
       org.opencontainers.image.source="${OCI_SOURCE}" \
       org.opencontainers.image.revision="${OCI_REVISION}" \
+      org.opencontainers.image.created="${OCI_CREATED}" \
       org.opencontainers.image.licenses="${OCI_LICENSES}"
 
 WORKDIR /app

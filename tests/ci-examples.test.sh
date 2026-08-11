@@ -49,6 +49,8 @@ test_ci_publish_example_preserves_no_push_contract() {
   assert_file_contains "$ci_example" "PUSH: \"false\""
   assert_file_contains "$ci_example" "SBOM: \"true\""
   assert_file_contains "$ci_example" "PROVENANCE: mode=min"
+  assert_file_contains "$ci_example" 'git log -1 --format=%ct'
+  assert_file_contains "$ci_example" 'OCI_CREATED=${created_at}'
   assert_file_contains "$ci_example" "./scripts/validate-build-plan.sh"
   assert_file_contains "$ci_example" "./scripts/push-image.sh"
   assert_file_contains "$ci_example" "if: \${{ github.event.inputs.publish == 'true' }}"
@@ -71,6 +73,7 @@ test_no_push_review_template_captures_required_evidence() {
   assert_file_contains "$review_template" "Registry output absent"
   assert_file_contains "$review_template" "SBOM=false"
   assert_file_contains "$review_template" "PROVENANCE=mode=min"
+  assert_file_contains "$review_template" "OCI_CREATED"
   assert_file_contains "$review_template" "./scripts/push-image.sh"
   assert_file_contains "$review_template" "Registry authentication happened through Docker or the CI secret store"
   pass "no-push review template records plan, metadata, attestation, and push approval evidence"

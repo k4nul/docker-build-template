@@ -50,6 +50,10 @@ variable "OCI_REVISION" {
   default = "unknown"
 }
 
+variable "OCI_CREATED" {
+  default = "1970-01-01T00:00:00Z"
+}
+
 variable "OCI_LICENSES" {
   default = "MIT"
 }
@@ -69,6 +73,7 @@ target "default" {
     OCI_DESCRIPTION = OCI_DESCRIPTION
     OCI_SOURCE      = OCI_SOURCE
     OCI_REVISION    = OCI_REVISION
+    OCI_CREATED     = OCI_CREATED
     OCI_LICENSES    = OCI_LICENSES
   }
 }

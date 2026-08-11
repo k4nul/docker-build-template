@@ -88,6 +88,7 @@ set -eu
   printf 'SBOM=%s\n' "${SBOM-}"
   printf 'PROVENANCE=%s\n' "${PROVENANCE-}"
   printf 'OCI_TITLE=%s\n' "${OCI_TITLE-}"
+  printf 'OCI_CREATED=%s\n' "${OCI_CREATED-}"
 } >> "$DOCKER_STUB_LOG"
 
 if [ "$#" -eq 5 ] &&
@@ -207,6 +208,7 @@ OCI_TITLE='Validated App'
 OCI_DESCRIPTION="Validated image"
 OCI_SOURCE=https://example.com/validated-app
 OCI_REVISION=abc123
+OCI_CREATED=2026-06-15T12:34:56Z
 OCI_LICENSES=MIT
 EOF
 
@@ -225,6 +227,7 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "SBOM=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_TITLE=Validated App"
+  assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_CREATED=2026-06-15T12:34:56Z"
   pass "no-push validation exports settings and checks the bake plan"
 }
 
@@ -880,6 +883,41 @@ EOF
   pass "alternate template Dockerfiles must keep required OCI label bindings"
 }
 
+test_creation_metadata_bindings_are_enforced_for_all_templates() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "created-label-primary-template"
+  grep -Fv -- 'org.opencontainers.image.created="${OCI_CREATED}"' \
+    "$FIXTURE_DIR/docker/Dockerfile" > "$FIXTURE_DIR/docker/Dockerfile.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.tmp" "$FIXTURE_DIR/docker/Dockerfile"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains 'Dockerfile is missing required OCI label binding: org.opencontainers.image.created="${OCI_CREATED}"'
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+
+  make_fixture "created-argument-alternate-template"
+  grep -Fv -- 'ARG OCI_CREATED="1970-01-01T00:00:00Z"' \
+    "$FIXTURE_DIR/docker/Dockerfile.multistage" > "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp"
+  mv "$FIXTURE_DIR/docker/Dockerfile.multistage.tmp" \
+    "$FIXTURE_DIR/docker/Dockerfile.multistage"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Dockerfile is missing required OCI metadata argument: OCI_CREATED"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "creation metadata bindings are enforced for both template Dockerfiles"
+}
+
 test_build_contract_is_required_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "missing-build-contract"
@@ -1031,6 +1069,7 @@ test_subdirectory_context_dockerignore_patterns_are_enforced
 test_credential_dockerignore_patterns_are_enforced
 test_required_oci_label_bindings_are_enforced
 test_alternate_template_oci_label_bindings_are_enforced
+test_creation_metadata_bindings_are_enforced_for_all_templates
 test_build_contract_is_required_before_bake
 test_build_contract_security_guidance_is_enforced
 test_remote_context_skips_local_directory_check

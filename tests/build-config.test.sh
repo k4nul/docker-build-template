@@ -72,6 +72,7 @@ print_loaded_settings() {
   printf 'OCI_DESCRIPTION=%s\n' "$OCI_DESCRIPTION"
   printf 'OCI_SOURCE=%s\n' "$OCI_SOURCE"
   printf 'OCI_REVISION=%s\n' "$OCI_REVISION"
+  printf 'OCI_CREATED=%s\n' "$OCI_CREATED"
   printf 'OCI_LICENSES=%s\n' "$OCI_LICENSES"
   printf 'IMAGE_REF=%s\n' "$(image_build_ref)"
   printf 'OUTPUT_FLAG=%s\n' "$(image_build_output_flag)"
@@ -84,7 +85,7 @@ print_exported_settings() {
   exported_settings_pattern="${exported_settings_pattern}PLATFORMS|PUSH|SBOM|"
   exported_settings_pattern="${exported_settings_pattern}PROVENANCE|OCI_TITLE|"
   exported_settings_pattern="${exported_settings_pattern}OCI_DESCRIPTION|OCI_SOURCE|"
-  exported_settings_pattern="${exported_settings_pattern}OCI_REVISION|OCI_LICENSES)="
+  exported_settings_pattern="${exported_settings_pattern}OCI_REVISION|OCI_CREATED|OCI_LICENSES)="
   env | grep -E "$exported_settings_pattern" | sort
 }
 
@@ -131,6 +132,7 @@ OCI_TITLE='Quoted App'
 OCI_DESCRIPTION="Quoted image description"
 OCI_SOURCE=https://example.com/quoted-app
 OCI_REVISION=rev-123
+OCI_CREATED=2026-06-15T12:34:56Z
 OCI_LICENSES=Apache-2.0
 EOF
 
@@ -148,6 +150,7 @@ EOF
   assert_output_contains "PROVENANCE=mode=max"
   assert_output_contains "OCI_TITLE=Quoted App"
   assert_output_contains "OCI_DESCRIPTION=Quoted image description"
+  assert_output_contains "OCI_CREATED=2026-06-15T12:34:56Z"
   assert_output_contains "IMAGE_REF=registry.example.com/team/quoted-app:2026.06.15"
   assert_output_contains "OUTPUT_FLAG=--push"
   pass "config files support export prefixes, quoted values, and image reference output"
@@ -234,6 +237,72 @@ EOF
   assert_status 2
   assert_output_contains "PUSH must be true or false"
   pass "invalid boolean and provenance controls are rejected during validation"
+}
+
+test_oci_created_requires_a_valid_utc_rfc3339_timestamp() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/invalid-created.env"
+  output_file="$TEST_ROOT/invalid-created.out"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=2026-13-40T25:61:61Z
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_CREATED must be a UTC RFC 3339 timestamp"
+  pass "creation metadata rejects impossible calendar and clock values"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=2026-02-29T12:34:56Z
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_CREATED must be a UTC RFC 3339 timestamp"
+  pass "creation metadata rejects invalid leap dates"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=2028-02-29T12:34:56.123Z
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 0
+  assert_output_contains "OCI_CREATED=2028-02-29T12:34:56.123Z"
+  pass "creation metadata accepts fractional-second UTC RFC 3339 timestamps"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=2028-02-29T12:34:56+00:00
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 0
+  assert_output_contains "OCI_CREATED=2028-02-29T12:34:56Z"
+  pass "creation metadata normalizes zero-offset UTC timestamps"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=0008-02-29T12:34:56Z
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 0
+  assert_output_contains "OCI_CREATED=0008-02-29T12:34:56Z"
+  pass "creation metadata handles zero-padded years without octal arithmetic"
+
+  cat > "$config_file" <<'EOF'
+OCI_CREATED=2026-12-31T23:59:60Z
+EOF
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_CREATED must be a UTC RFC 3339 timestamp"
+  pass "creation metadata rejects unverified leap seconds"
 }
 
 test_url_userinfo_config_values_are_rejected() {
@@ -526,6 +595,7 @@ test_defaults_remain_valid_when_exported_for_buildx() {
   assert_output_contains "SBOM=false"
   assert_output_contains "PROVENANCE=false"
   assert_output_contains "OCI_REVISION=unknown"
+  assert_output_contains "OCI_CREATED=1970-01-01T00:00:00Z"
   pass "loaded settings are exported for buildx bake consumers"
 }
 
@@ -535,6 +605,7 @@ test_environment_values_override_config_file_values
 test_invalid_config_lines_are_rejected
 test_unsupported_config_keys_are_rejected
 test_invalid_boolean_and_provenance_values_are_rejected
+test_oci_created_requires_a_valid_utc_rfc3339_timestamp
 test_url_userinfo_config_values_are_rejected
 test_token_like_config_values_are_rejected
 test_context_url_userinfo_values_are_rejected

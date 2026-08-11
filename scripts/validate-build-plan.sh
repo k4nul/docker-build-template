@@ -188,6 +188,7 @@ require_dockerfile_oci_metadata() {
     OCI_DESCRIPTION \
     OCI_SOURCE \
     OCI_REVISION \
+    OCI_CREATED \
     OCI_LICENSES
   do
     if ! grep -Eq "^ARG[[:space:]]+$required_arg(=|$)" "$dockerfile_to_check"; then
@@ -201,6 +202,7 @@ require_dockerfile_oci_metadata() {
     'org.opencontainers.image.description="${OCI_DESCRIPTION}"' \
     'org.opencontainers.image.source="${OCI_SOURCE}"' \
     'org.opencontainers.image.revision="${OCI_REVISION}"' \
+    'org.opencontainers.image.created="${OCI_CREATED}"' \
     'org.opencontainers.image.licenses="${OCI_LICENSES}"'
   do
     if ! grep -F -- "$required_label" "$dockerfile_to_check" >/dev/null; then
@@ -296,6 +298,10 @@ require_build_contract_guidance() {
     "PROVENANCE=mode=max" \
     "attestation publishing" \
     "private image names" \
+    "Reproducible metadata:" \
+    "OCI_CREATED" \
+    "UTC RFC 3339" \
+    "must not be generated from the build invocation time" \
     "CI publish examples:" \
     "checked \`BAKE_PLAN_OUTPUT\`" \
     "hardcoded registry credentials" \

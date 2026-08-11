@@ -75,6 +75,9 @@ load_image_config() {
       OCI_REVISION)
         OCI_REVISION=${OCI_REVISION:-$image_config_value}
         ;;
+      OCI_CREATED)
+        OCI_CREATED=${OCI_CREATED:-$image_config_value}
+        ;;
       OCI_LICENSES)
         OCI_LICENSES=${OCI_LICENSES:-$image_config_value}
         ;;
@@ -100,6 +103,7 @@ apply_image_config_defaults() {
   OCI_DESCRIPTION="${OCI_DESCRIPTION:-Reusable Docker build template image}"
   OCI_SOURCE="${OCI_SOURCE:-https://example.com/repository}"
   OCI_REVISION="${OCI_REVISION:-unknown}"
+  OCI_CREATED="${OCI_CREATED:-1970-01-01T00:00:00Z}"
   OCI_LICENSES="${OCI_LICENSES:-MIT}"
 }
 
@@ -290,6 +294,7 @@ run_image_build() {
     --build-arg "OCI_DESCRIPTION=$OCI_DESCRIPTION" \
     --build-arg "OCI_SOURCE=$OCI_SOURCE" \
     --build-arg "OCI_REVISION=$OCI_REVISION" \
+    --build-arg "OCI_CREATED=$OCI_CREATED" \
     --build-arg "OCI_LICENSES=$OCI_LICENSES"
 
   if [ "$SBOM" != "false" ]; then
@@ -319,6 +324,7 @@ export_image_build_settings() {
   export OCI_DESCRIPTION
   export OCI_SOURCE
   export OCI_REVISION
+  export OCI_CREATED
   export OCI_LICENSES
 }
 
@@ -357,6 +363,94 @@ require_provenance_setting() {
   esac
 }
 
+require_oci_created_setting() {
+  case "$OCI_CREATED" in
+    *Z)
+      oci_created_timestamp=${OCI_CREATED%Z}
+      ;;
+    *+00:00)
+      oci_created_timestamp=${OCI_CREATED%+00:00}
+      OCI_CREATED="${oci_created_timestamp}Z"
+      ;;
+    *)
+      printf '%s\n' "OCI_CREATED must be a UTC RFC 3339 timestamp such as 2026-01-02T03:04:05Z" >&2
+      exit 2
+      ;;
+  esac
+
+  case "$oci_created_timestamp" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9])
+      ;;
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].*)
+      oci_created_fraction=${oci_created_timestamp#*.}
+      case "$oci_created_fraction" in
+        ''|*[!0-9]*)
+          printf '%s\n' "OCI_CREATED must be a UTC RFC 3339 timestamp such as 2026-01-02T03:04:05Z" >&2
+          exit 2
+          ;;
+      esac
+      ;;
+    *)
+      printf '%s\n' "OCI_CREATED must be a UTC RFC 3339 timestamp such as 2026-01-02T03:04:05Z" >&2
+      exit 2
+      ;;
+  esac
+
+  oci_created_date=${oci_created_timestamp%%T*}
+  oci_created_time=${oci_created_timestamp#*T}
+  oci_created_time=${oci_created_time%%.*}
+  oci_created_year=${oci_created_date%%-*}
+  oci_created_month_day=${oci_created_date#*-}
+  oci_created_month=${oci_created_month_day%%-*}
+  oci_created_day=${oci_created_month_day#*-}
+  oci_created_hour=${oci_created_time%%:*}
+  oci_created_minute_second=${oci_created_time#*:}
+  oci_created_minute=${oci_created_minute_second%%:*}
+  oci_created_second=${oci_created_minute_second#*:}
+
+  oci_created_year_number=$(strip_decimal_leading_zeroes "$oci_created_year")
+  oci_created_month_number=$(strip_decimal_leading_zeroes "$oci_created_month")
+  oci_created_day_number=$(strip_decimal_leading_zeroes "$oci_created_day")
+  oci_created_hour_number=$(strip_decimal_leading_zeroes "$oci_created_hour")
+  oci_created_minute_number=$(strip_decimal_leading_zeroes "$oci_created_minute")
+  oci_created_second_number=$(strip_decimal_leading_zeroes "$oci_created_second")
+
+  if [ "$oci_created_month_number" -lt 1 ] || [ "$oci_created_month_number" -gt 12 ] || \
+    [ "$oci_created_hour_number" -gt 23 ] || [ "$oci_created_minute_number" -gt 59 ] || \
+    [ "$oci_created_second_number" -gt 59 ]; then
+    printf '%s\n' "OCI_CREATED must be a UTC RFC 3339 timestamp such as 2026-01-02T03:04:05Z" >&2
+    exit 2
+  fi
+
+  case "$oci_created_month_number" in
+    1|3|5|7|8|10|12) oci_created_days_in_month=31 ;;
+    4|6|9|11) oci_created_days_in_month=30 ;;
+    2)
+      if [ $((oci_created_year_number % 4)) -eq 0 ] && \
+        { [ $((oci_created_year_number % 100)) -ne 0 ] || [ $((oci_created_year_number % 400)) -eq 0 ]; }; then
+        oci_created_days_in_month=29
+      else
+        oci_created_days_in_month=28
+      fi
+      ;;
+  esac
+
+  if [ "$oci_created_day_number" -lt 1 ] || [ "$oci_created_day_number" -gt "$oci_created_days_in_month" ]; then
+    printf '%s\n' "OCI_CREATED must be a UTC RFC 3339 timestamp such as 2026-01-02T03:04:05Z" >&2
+    exit 2
+  fi
+}
+
+strip_decimal_leading_zeroes() {
+  decimal_value=$1
+
+  while [ "${decimal_value#0}" != "$decimal_value" ]; do
+    decimal_value=${decimal_value#0}
+  done
+
+  printf '%s\n' "${decimal_value:-0}"
+}
+
 validate_image_build_settings() {
   require_non_empty_setting IMAGE_NAME "${IMAGE_NAME:-}"
   require_non_empty_setting IMAGE_TAG "${IMAGE_TAG:-}"
@@ -370,7 +464,9 @@ validate_image_build_settings() {
   require_non_empty_setting OCI_DESCRIPTION "${OCI_DESCRIPTION:-}"
   require_non_empty_setting OCI_SOURCE "${OCI_SOURCE:-}"
   require_non_empty_setting OCI_REVISION "${OCI_REVISION:-}"
+  require_non_empty_setting OCI_CREATED "${OCI_CREATED:-}"
   require_non_empty_setting OCI_LICENSES "${OCI_LICENSES:-}"
+  require_oci_created_setting
 
   require_registry_prefix
   require_image_name_value
@@ -387,5 +483,6 @@ validate_image_build_settings() {
   require_public_build_value OCI_DESCRIPTION "$OCI_DESCRIPTION"
   require_public_build_value OCI_SOURCE "$OCI_SOURCE"
   require_public_build_value OCI_REVISION "$OCI_REVISION"
+  require_public_build_value OCI_CREATED "$OCI_CREATED"
   require_public_build_value OCI_LICENSES "$OCI_LICENSES"
 }

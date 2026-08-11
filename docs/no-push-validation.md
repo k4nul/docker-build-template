@@ -20,6 +20,7 @@ BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/validate-build-plan.sh
 ```
 
@@ -108,6 +109,11 @@ public build values. It cannot decide whether a private registry name, internal
 path, source URL, or revision value is acceptable to publish; that remains a
 human review item.
 
+For reproducible public metadata, set `OCI_CREATED` to a UTC RFC 3339 timestamp
+derived from the reviewed source or release record, not the current build
+invocation time. The default epoch is deterministic for template validation but
+is not a release timestamp.
+
 ## Push Approval Boundary
 
 Only after the review record is complete should CI call:
@@ -117,6 +123,7 @@ CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/push-image.sh
 ```
 

@@ -41,6 +41,7 @@ attestations, see [docs/no-push-validation.md](no-push-validation.md).
    OCI_DESCRIPTION=Container image for My App
    OCI_SOURCE=https://example.com/team/my-app
    OCI_REVISION=<commit-sha-from-ci>
+   OCI_CREATED=<source-or-release-timestamp-in-utc-rfc-3339>
    OCI_LICENSES=MIT
    ```
 
@@ -103,6 +104,7 @@ CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/push-image.sh
 ```
 
@@ -157,8 +159,8 @@ PROVENANCE=false
 ```
 
 When a project is ready to publish attestations, first validate the final
-public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`, and
-`OCI_LICENSES` values with attestations disabled. Then enable one attestation
+public-safe `OCI_TITLE`, `OCI_DESCRIPTION`, `OCI_SOURCE`, `OCI_REVISION`,
+`OCI_CREATED`, and `OCI_LICENSES` values with attestations disabled. Then enable one attestation
 change at a time and review the captured Buildx plan before pushing:
 
 ```text
@@ -211,7 +213,8 @@ manual review items before publishing outside the intended registry boundary.
 - the selected local context `.dockerignore` keeps local config, non-example
   `config/*.env` files, credentials, caches, and generated output out of the
   build context.
-- `OCI_SOURCE` is a public source URL and `OCI_REVISION` is the CI commit SHA.
+- `OCI_SOURCE` is a public source URL, `OCI_REVISION` is the CI commit SHA, and
+  `OCI_CREATED` is a reviewed UTC RFC 3339 source or release timestamp.
 - Public image identity and OCI metadata values do not include URL userinfo,
   token-like strings, or private keys, and manual review has cleared any private
   registry names or internal paths.

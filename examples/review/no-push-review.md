@@ -17,6 +17,7 @@ private tokens, private keys, or internal hostnames into the record.
 | Provenance | `PROVENANCE=...` |
 | OCI source | `OCI_SOURCE=...` |
 | OCI revision | `OCI_REVISION=...` |
+| OCI created | `OCI_CREATED=...` (UTC RFC 3339 source or release timestamp) |
 
 ## No-Push Evidence
 
@@ -26,6 +27,7 @@ BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/validate-build-plan.sh
 ```
 
@@ -54,6 +56,7 @@ CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/push-image.sh
 ```
 

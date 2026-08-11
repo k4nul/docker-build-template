@@ -15,6 +15,7 @@ bash -n \
   scripts/build-image.sh \
   scripts/push-image.sh \
   scripts/validate-build-plan.sh \
+  scripts/test-reproducible-metadata.sh \
   tests/build-config.test.sh \
   tests/build-image.test.sh \
   tests/ci-examples.test.sh \
@@ -28,6 +29,7 @@ bash tests/build-config.test.sh
 bash tests/build-image.test.sh
 bash tests/ci-examples.test.sh
 bash tests/validate-build-plan.test.sh
+bash scripts/test-reproducible-metadata.sh
 ```
 
 The tests create temporary fixtures under `${TMPDIR:-/tmp}` and remove them on
@@ -44,6 +46,12 @@ supply-chain guidance in
 `tests/ci-examples.test.sh` checks that the inactive CI publish example keeps
 `PUSH=false`, captures `BAKE_PLAN_OUTPUT`, uses the validated push wrapper for
 registry output, and links the no-push review template from the operator docs.
+`scripts/test-reproducible-metadata.sh` renders the Bake plan twice with fixed
+public metadata and verifies byte-for-byte identical output, including the
+revision and UTC creation timestamp. It then validates the OCI label contract
+for both template Dockerfiles with the same metadata. Finally, it builds both
+templates into process-unique local tags, inspects the resulting revision and
+creation labels, and removes those tags. It never pushes an image.
 
 `scripts/validate-build-plan.sh` checks `docs/build-contract.md` for required
 literal guidance phrases before it renders and checks a Buildx plan. When
@@ -130,6 +138,7 @@ CONFIG_FILE=config/image.env \
 IMAGE_TAG="$CI_COMMIT_SHA" \
 OCI_SOURCE="$PUBLIC_REPOSITORY_URL" \
 OCI_REVISION="$CI_COMMIT_SHA" \
+OCI_CREATED="$SOURCE_OR_RELEASE_TIMESTAMP_UTC" \
 ./scripts/push-image.sh
 ```
 
