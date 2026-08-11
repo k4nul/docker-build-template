@@ -345,6 +345,69 @@ require_bake_plan_omits() {
   fi
 }
 
+escape_bake_plan_json_string() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+require_bake_plan_setting() {
+  bake_plan_output=$1
+  setting_name=$2
+  setting_value=$3
+  failure_message=$4
+  escaped_setting_value=$(escape_bake_plan_json_string "$setting_value")
+  expected_setting=$(printf '"%s": "%s"' "$setting_name" "$escaped_setting_value")
+
+  require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+    "$expected_setting" "$failure_message"
+}
+
+require_bake_plan_identity_and_metadata() {
+  bake_plan_output=$1
+
+  require_bake_plan_setting "$bake_plan_output" context "$CONTEXT" \
+    "Buildx bake plan context does not match CONTEXT=$CONTEXT"
+  require_bake_plan_setting "$bake_plan_output" dockerfile "$DOCKERFILE" \
+    "Buildx bake plan Dockerfile does not match DOCKERFILE=$DOCKERFILE"
+
+  expected_image_ref=$(image_build_ref)
+  escaped_image_ref=$(escape_bake_plan_json_string "$expected_image_ref")
+  require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+    "\"$escaped_image_ref\"" \
+    "Buildx bake plan image tag does not match $expected_image_ref"
+
+  old_ifs=$IFS
+  IFS=,
+  for platform in $PLATFORMS; do
+    IFS=$old_ifs
+    escaped_platform=$(escape_bake_plan_json_string "$platform")
+    require_bake_plan_check "$bake_plan_output" require_bake_plan_contains \
+      "\"$escaped_platform\"" \
+      "Buildx bake plan is missing configured platform: $platform"
+    IFS=,
+  done
+  IFS=$old_ifs
+
+  for metadata_setting in \
+    OCI_TITLE \
+    OCI_DESCRIPTION \
+    OCI_SOURCE \
+    OCI_REVISION \
+    OCI_CREATED \
+    OCI_LICENSES
+  do
+    case "$metadata_setting" in
+      OCI_TITLE) metadata_value=$OCI_TITLE ;;
+      OCI_DESCRIPTION) metadata_value=$OCI_DESCRIPTION ;;
+      OCI_SOURCE) metadata_value=$OCI_SOURCE ;;
+      OCI_REVISION) metadata_value=$OCI_REVISION ;;
+      OCI_CREATED) metadata_value=$OCI_CREATED ;;
+      OCI_LICENSES) metadata_value=$OCI_LICENSES ;;
+    esac
+    require_bake_plan_setting "$bake_plan_output" "$metadata_setting" "$metadata_value" \
+      "Buildx bake plan $metadata_setting does not match the resolved build setting"
+  done
+}
+
 exit_bake_plan_check_failed() {
   bake_plan_output=$1
 
@@ -403,6 +466,8 @@ require_bake_plan_attestation_controls() {
   require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \
     '"type": "registry"' \
     "Buildx bake plan enables registry output while PUSH=false"
+
+  require_bake_plan_identity_and_metadata "$bake_plan_output"
 
   if [ "$SBOM" = "false" ]; then
     require_bake_plan_check "$bake_plan_output" require_bake_plan_omits \

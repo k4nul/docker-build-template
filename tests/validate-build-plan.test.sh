@@ -97,30 +97,52 @@ if [ "$#" -eq 5 ] &&
   [ "$3" = "--file" ] &&
   [ "$4" = "buildx/docker-bake.hcl" ] &&
   [ "$5" = "--print" ]; then
-  if [ "${IMAGE_NAME-}" = "missing-sbom-app" ]; then
-    printf '{\n'
-    printf '  "target": {"default": {"attest": [], "output": [{"type": "cacheonly"}]}}\n'
-    printf '}\n'
-    exit 0
+  stub_image_ref="${REGISTRY-}${IMAGE_NAME-}:${IMAGE_TAG-}"
+  stub_context=${CONTEXT-}
+  stub_oci_title=${OCI_TITLE-}
+  if [ "${IMAGE_NAME-}" = "wrong-image-app" ]; then
+    stub_image_ref="registry.example.com/team/unexpected-app:${IMAGE_TAG-}"
   fi
-  if [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
-    printf '{\n'
-    printf '  "target": {"default": {"attest": [{"type": "provenance"}], "output": [{"type": "cacheonly"}]}}\n'
-    printf '}\n'
-    exit 0
+  if [ "${IMAGE_NAME-}" = "wrong-context-app" ]; then
+    stub_context=unexpected-context
   fi
-  if [ "${IMAGE_NAME-}" = "missing-output-app" ]; then
-    printf '{\n'
-    printf '  "target": {"default": {"attest": []}}\n'
-    printf '}\n'
-    exit 0
+  if [ "${IMAGE_NAME-}" = "wrong-title-app" ]; then
+    stub_oci_title="Unexpected title"
   fi
   printf '{\n'
   printf '  "target": {\n'
   printf '    "default": {\n'
-  if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ]; then
+  printf '      "context": "%s",\n' "$stub_context"
+  printf '      "dockerfile": "%s",\n' "${DOCKERFILE-}"
+  printf '      "args": {\n'
+  printf '        "OCI_TITLE": "%s",\n' "$stub_oci_title"
+  printf '        "OCI_DESCRIPTION": "%s",\n' "${OCI_DESCRIPTION-}"
+  printf '        "OCI_SOURCE": "%s",\n' "${OCI_SOURCE-}"
+  printf '        "OCI_REVISION": "%s",\n' "${OCI_REVISION-}"
+  printf '        "OCI_CREATED": "%s",\n' "${OCI_CREATED-}"
+  printf '        "OCI_LICENSES": "%s"\n' "${OCI_LICENSES-}"
+  printf '      },\n'
+  printf '      "tags": ["%s"],\n' "$stub_image_ref"
+  printf '      "platforms": ['
+  old_ifs=$IFS
+  IFS=,
+  first_platform=true
+  for platform in ${PLATFORMS-}; do
+    IFS=$old_ifs
+    if [ "$first_platform" = true ]; then
+      first_platform=false
+    else
+      printf ', '
+    fi
+    printf '"%s"' "$platform"
+    IFS=,
+  done
+  IFS=$old_ifs
+  printf '],\n'
+  if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ] || \
+    [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
     printf '      "attest": [\n'
-    if [ "${SBOM-}" = "true" ]; then
+    if [ "${SBOM-}" = "true" ] && [ "${IMAGE_NAME-}" != "missing-sbom-app" ]; then
       printf '        {"type": "sbom"}'
       if [ "${PROVENANCE-}" != "false" ]; then
         printf ',\n'
@@ -128,7 +150,9 @@ if [ "$#" -eq 5 ] &&
         printf '\n'
       fi
     fi
-    if [ "${PROVENANCE-}" = "mode=min" ]; then
+    if [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
+      printf '        {"type": "provenance"}\n'
+    elif [ "${PROVENANCE-}" = "mode=min" ]; then
       printf '        {"type": "provenance", "mode": "min"}\n'
     elif [ "${PROVENANCE-}" = "mode=max" ]; then
       printf '        {"type": "provenance", "mode": "max"}\n'
@@ -139,7 +163,9 @@ if [ "$#" -eq 5 ] &&
   else
     printf '      "attest": []\n'
   fi
-  printf '      ,"output": [{"type": "cacheonly"}]\n'
+  if [ "${IMAGE_NAME-}" != "missing-output-app" ]; then
+    printf '      ,"output": [{"type": "cacheonly"}]\n'
+  fi
   printf '    }\n'
   printf '  }\n'
   printf '}\n'
@@ -228,7 +254,55 @@ EOF
   assert_file_contains "$FIXTURE_DIR/docker.log" "PROVENANCE=false"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_TITLE=Validated App"
   assert_file_contains "$FIXTURE_DIR/docker.log" "OCI_CREATED=2026-06-15T12:34:56Z"
-  pass "no-push validation exports settings and checks the bake plan"
+  pass "no-push validation exports settings and checks resolved plan identity and metadata"
+}
+
+test_mismatched_bake_plan_image_tag_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "mismatched-bake-plan-image-tag"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+REGISTRY=registry.example.com/team/
+IMAGE_NAME=wrong-image-app
+IMAGE_TAG=1.2.3
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan image tag does not match registry.example.com/team/wrong-image-app:1.2.3"
+  pass "no-push validation rejects a Bake plan with a mismatched image tag"
+}
+
+test_mismatched_bake_plan_context_and_metadata_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "mismatched-bake-plan-context"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=wrong-context-app
+CONTEXT=.
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan context does not match CONTEXT=."
+
+  make_fixture "mismatched-bake-plan-metadata"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=wrong-title-app
+OCI_TITLE=Expected title
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan OCI_TITLE does not match the resolved build setting"
+  pass "no-push validation rejects Bake plans with mismatched context or OCI metadata"
 }
 
 test_no_push_bake_plan_requires_cache_only_output() {
@@ -1035,6 +1109,8 @@ EOF
 
 install_docker_stub
 test_success_uses_no_push_bake_plan
+test_mismatched_bake_plan_image_tag_is_rejected
+test_mismatched_bake_plan_context_and_metadata_are_rejected
 test_no_push_bake_plan_requires_cache_only_output
 test_attestation_controls_are_visible_in_no_push_bake_plan
 test_config_aware_bake_plan_can_be_written_for_review
