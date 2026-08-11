@@ -112,18 +112,40 @@ if [ "$#" -eq 5 ] &&
   [ "$3" = "--file" ] &&
   [ "$4" = "buildx/docker-bake.hcl" ] &&
   [ "$5" = "--print" ]; then
-  if [ "${IMAGE_NAME-}" = "push-missing-sbom-app" ]; then
-    printf '{\n'
-    printf '  "target": {"default": {"attest": [], "output": [{"type": "cacheonly"}]}}\n'
-    printf '}\n'
-    exit 0
-  fi
   printf '{\n'
   printf '  "target": {\n'
   printf '    "default": {\n'
+  printf '      "context": "%s",\n' "${CONTEXT-}"
+  printf '      "dockerfile": "%s",\n' "${DOCKERFILE-}"
+  printf '      "args": {\n'
+  printf '        "OCI_TITLE": "%s",\n' "${OCI_TITLE-}"
+  printf '        "OCI_DESCRIPTION": "%s",\n' "${OCI_DESCRIPTION-}"
+  printf '        "OCI_SOURCE": "%s",\n' "${OCI_SOURCE-}"
+  printf '        "OCI_REVISION": "%s",\n' "${OCI_REVISION-}"
+  printf '        "OCI_CREATED": "%s",\n' "${OCI_CREATED-}"
+  printf '        "OCI_LICENSES": "%s"\n' "${OCI_LICENSES-}"
+  printf '      },\n'
+  printf '      "tags": ["%s%s:%s"],\n' \
+    "${REGISTRY-}" "${IMAGE_NAME-}" "${IMAGE_TAG-}"
+  printf '      "platforms": ['
+  old_ifs=$IFS
+  IFS=,
+  first_platform=true
+  for platform in ${PLATFORMS-}; do
+    IFS=$old_ifs
+    if [ "$first_platform" = true ]; then
+      first_platform=false
+    else
+      printf ', '
+    fi
+    printf '"%s"' "$platform"
+    IFS=,
+  done
+  IFS=$old_ifs
+  printf '],\n'
   if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ]; then
     printf '      "attest": [\n'
-    if [ "${SBOM-}" = "true" ]; then
+    if [ "${SBOM-}" = "true" ] && [ "${IMAGE_NAME-}" != "push-missing-sbom-app" ]; then
       printf '        {"type": "sbom"}'
       if [ "${PROVENANCE-}" != "false" ]; then
         printf ',\n'

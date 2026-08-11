@@ -89,7 +89,9 @@ into the Buildx bake environment and checks that the rendered plan matches the
 requested `SBOM` and `PROVENANCE` controls with cache-only output while
 `PUSH=false`, without building or pushing an image. Set
 `BAKE_PLAN_OUTPUT=out/no-push-bake-plan.json` when the checked config-aware plan
-needs to be preserved as review evidence. The validator also performs local
+needs to be preserved as review evidence. It also confirms the rendered plan
+keeps the resolved image tag, context, Dockerfile, platforms, and every OCI
+metadata argument. The validator also performs local
 checks before Docker is called, including supported config keys, URL userinfo
 and common token or private-key markers in public build values,
 credential-shaped registry prefixes, repository-bound local context and
