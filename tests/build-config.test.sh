@@ -417,20 +417,36 @@ test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
     fail "BusyBox shell rejected clean default build settings"
   fi
 
-  if OCI_TITLE="$(printf 'Unsafe\tmetadata')" busybox sh -c \
-    '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
-    > "$output_file" 2>&1; then
-    fail "BusyBox shell accepted control-character metadata"
-  fi
+  for busybox_control in 'tab:\011' 'newline:\012' 'carriage-return:\015' 'escape:\033' 'delete:\177'; do
+    busybox_control_name=${busybox_control%%:*}
+    busybox_control_value=$(printf '%b_' "${busybox_control#*:}")
+    busybox_control_value=${busybox_control_value%_}
 
-  PROBE_OUTPUT=$(cat "$output_file")
-  assert_output_contains "OCI_TITLE must not contain control characters"
+    set +e
+    OCI_TITLE="Unsafe${busybox_control_value}metadata" busybox sh -c \
+      '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
+      > "$output_file" 2>&1
+    PROBE_STATUS=$?
+    set -e
+
+    if [ "$PROBE_STATUS" -ne 2 ]; then
+      fail "BusyBox shell did not reject $busybox_control_name control-character metadata"
+    fi
+
+    PROBE_OUTPUT=$(cat "$output_file")
+    assert_output_contains "OCI_TITLE must not contain control characters"
+  done
 
   printf 'OCI_TITLE=Unsafe\000metadata\n' > "$TEST_ROOT/busybox-nul.env"
-  if CONFIG_FILE="$TEST_ROOT/busybox-nul.env" busybox sh -c \
+  set +e
+  CONFIG_FILE="$TEST_ROOT/busybox-nul.env" busybox sh -c \
     '. ./scripts/build-config.sh; load_image_build_settings' \
-    > "$output_file" 2>&1; then
-    fail "BusyBox shell accepted NUL config metadata"
+    > "$output_file" 2>&1
+  PROBE_STATUS=$?
+  set -e
+
+  if [ "$PROBE_STATUS" -ne 2 ]; then
+    fail "BusyBox shell did not reject NUL config metadata"
   fi
 
   PROBE_OUTPUT=$(cat "$output_file")
