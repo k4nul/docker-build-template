@@ -454,6 +454,42 @@ test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
   pass "BusyBox shell uses the portable control-character guard"
 }
 
+test_dash_shell_accepts_clean_defaults_and_rejects_controls() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  output_file="$TEST_ROOT/dash-control-character.out"
+
+  if ! command -v dash >/dev/null 2>&1; then
+    fail "dash is required for the compatibility regression test"
+  fi
+
+  if ! dash -c '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
+    > "$output_file" 2>&1; then
+    fail "dash rejected clean default build settings"
+  fi
+
+  for dash_control in 'tab:\011' 'newline:\012' 'carriage-return:\015' 'escape:\033' 'delete:\177'; do
+    dash_control_name=${dash_control%%:*}
+    dash_control_value=$(printf '%b_' "${dash_control#*:}")
+    dash_control_value=${dash_control_value%_}
+
+    set +e
+    OCI_TITLE="Unsafe${dash_control_value}metadata" dash -c \
+      '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
+      > "$output_file" 2>&1
+    PROBE_STATUS=$?
+    set -e
+
+    if [ "$PROBE_STATUS" -ne 2 ]; then
+      fail "dash did not reject $dash_control_name control-character metadata"
+    fi
+
+    PROBE_OUTPUT=$(cat "$output_file")
+    assert_output_contains "OCI_TITLE must not contain control characters"
+  done
+
+  pass "dash uses the portable control-character guard"
+}
+
 test_context_url_userinfo_values_are_rejected() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/context-userinfo.env"
@@ -730,6 +766,7 @@ test_newline_environment_values_are_rejected
 test_nul_config_values_are_rejected_before_shell_parsing
 test_config_byte_inspection_failure_is_fail_closed
 test_busybox_shell_accepts_clean_defaults_and_rejects_controls
+test_dash_shell_accepts_clean_defaults_and_rejects_controls
 test_context_url_userinfo_values_are_rejected
 test_dockerfile_token_like_values_are_rejected
 test_registry_userinfo_prefix_is_rejected
