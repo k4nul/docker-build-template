@@ -337,6 +337,57 @@ EOF
   pass "token-like metadata is rejected before build args or labels"
 }
 
+test_control_character_config_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/control-character.env"
+  output_file="$TEST_ROOT/control-character.out"
+
+  printf 'OCI_TITLE=Unsafe\tmetadata\n' > "$config_file"
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_TITLE must not contain control characters"
+  pass "control characters are rejected before metadata reaches build args or labels"
+}
+
+test_newline_environment_values_are_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/newline-environment.env"
+  output_file="$TEST_ROOT/newline-environment.out"
+  newline_title='Unsafe
+metadata'
+
+  : > "$config_file"
+
+  CONFIG_FILE="$config_file" OCI_TITLE="$newline_title" \
+    run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "OCI_TITLE must not contain control characters"
+  pass "newline environment metadata is rejected before it reaches build args or labels"
+}
+
+test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
+  command -v busybox >/dev/null 2>&1 || return 0
+  TESTS_RUN=$((TESTS_RUN + 1))
+  output_file="$TEST_ROOT/busybox-control-character.out"
+
+  if ! busybox sh -c '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
+    > "$output_file" 2>&1; then
+    fail "BusyBox shell rejected clean default build settings"
+  fi
+
+  if OCI_TITLE="$(printf 'Unsafe\tmetadata')" busybox sh -c \
+    '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
+    > "$output_file" 2>&1; then
+    fail "BusyBox shell accepted control-character metadata"
+  fi
+
+  assert_output_contains "OCI_TITLE must not contain control characters"
+  pass "BusyBox shell uses the portable control-character guard"
+}
+
 test_context_url_userinfo_values_are_rejected() {
   TESTS_RUN=$((TESTS_RUN + 1))
   config_file="$TEST_ROOT/context-userinfo.env"
@@ -608,6 +659,9 @@ test_invalid_boolean_and_provenance_values_are_rejected
 test_oci_created_requires_a_valid_utc_rfc3339_timestamp
 test_url_userinfo_config_values_are_rejected
 test_token_like_config_values_are_rejected
+test_control_character_config_values_are_rejected
+test_newline_environment_values_are_rejected
+test_busybox_shell_accepts_clean_defaults_and_rejects_controls
 test_context_url_userinfo_values_are_rejected
 test_dockerfile_token_like_values_are_rejected
 test_registry_userinfo_prefix_is_rejected

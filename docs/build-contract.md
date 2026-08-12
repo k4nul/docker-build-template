@@ -117,8 +117,8 @@ sync with `scripts/build-config.sh`, `scripts/validate-build-plan.sh`,
   mounts such as `--secret` in project-specific builds that genuinely need
   short-lived credentials, and keep those secret files out of Git and the build
   context. Public build values that become image references, build path settings,
-  build arguments, or labels must not include URL userinfo or obvious
-  token/private-key markers.
+  build arguments, or labels must not include control characters, URL userinfo,
+  or obvious token/private-key markers.
 - SBOM and provenance: keep `SBOM=false` and `PROVENANCE=false` until a no-push
   plan has been reviewed. Use `SBOM=true` to include an SBOM attestation and
   prefer `PROVENANCE=mode=min` before `PROVENANCE=mode=max`. Review generated

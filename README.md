@@ -91,8 +91,8 @@ Run `scripts/validate-build-plan.sh` before enabling a registry push. The script
 requires `PUSH=false` and checks:
 
 - config shape and supported values.
-- image reference, build path, and OCI metadata values do not include URL
-  userinfo or obvious credential material.
+- image reference, build path, and OCI metadata values do not include control
+  characters, URL userinfo, or obvious credential material.
 - platform lists are comma-separated Docker platform values without whitespace or
   empty entries.
 - local build context and Dockerfile paths stay inside the repository. Remote

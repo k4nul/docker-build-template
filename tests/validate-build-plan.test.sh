@@ -480,6 +480,37 @@ EOF
   pass "secret-like metadata is rejected before docker buildx bake"
 }
 
+test_control_character_metadata_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "control-character-metadata"
+
+  printf 'PUSH=false\nOCI_DESCRIPTION=Unsafe\tmetadata\n' > "$FIXTURE_DIR/config/test.env"
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "OCI_DESCRIPTION must not contain control characters"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "control-character metadata is rejected before docker buildx bake"
+}
+
+test_newline_environment_metadata_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "newline-environment-metadata"
+  newline_description='Unsafe
+metadata'
+
+  printf 'PUSH=false\n' > "$FIXTURE_DIR/config/test.env"
+
+  OCI_DESCRIPTION="$newline_description" \
+    run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "OCI_DESCRIPTION must not contain control characters"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "newline environment metadata is rejected before docker buildx bake"
+}
+
 test_remote_context_userinfo_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "remote-context-userinfo"
@@ -1120,6 +1151,8 @@ test_missing_sbom_attestation_is_rejected
 test_disabled_provenance_attestation_is_rejected
 test_unsupported_attestation_controls_are_rejected_before_bake
 test_secret_like_metadata_is_rejected_before_bake
+test_control_character_metadata_is_rejected_before_bake
+test_newline_environment_metadata_is_rejected_before_bake
 test_remote_context_userinfo_is_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_latest_base_image_default_is_rejected_before_bake

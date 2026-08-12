@@ -150,9 +150,24 @@ contains_url_userinfo() {
   return 1
 }
 
+contains_control_character() (
+  LC_ALL=C
+  export LC_ALL
+
+  case $1 in
+    *[[:cntrl:]]*) return 0 ;;
+    *) return 1 ;;
+  esac
+)
+
 require_public_build_value() {
   public_setting_name=$1
   public_setting_value=$2
+
+  if contains_control_character "$public_setting_value"; then
+    printf '%s\n' "$public_setting_name must not contain control characters" >&2
+    exit 2
+  fi
 
   if contains_url_userinfo "$public_setting_value"; then
     printf '%s\n' "$public_setting_name must not include URL userinfo or credentials" >&2
