@@ -368,10 +368,27 @@ metadata'
   pass "newline environment metadata is rejected before it reaches build args or labels"
 }
 
+test_nul_config_values_are_rejected_before_shell_parsing() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/nul-character.env"
+  output_file="$TEST_ROOT/nul-character.out"
+
+  printf 'OCI_TITLE=Unsafe\000metadata\n' > "$config_file"
+
+  CONFIG_FILE="$config_file" run_config_probe "$output_file" print_loaded_settings
+
+  assert_status 2
+  assert_output_contains "Config file must not contain NUL bytes: $config_file"
+  pass "NUL config bytes are rejected before the shell can discard them"
+}
+
 test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
-  command -v busybox >/dev/null 2>&1 || return 0
   TESTS_RUN=$((TESTS_RUN + 1))
   output_file="$TEST_ROOT/busybox-control-character.out"
+
+  if ! command -v busybox >/dev/null 2>&1; then
+    fail "busybox is required for the compatibility regression test"
+  fi
 
   if ! busybox sh -c '. ./scripts/build-config.sh; CONFIG_FILE=config/image.env.example; load_image_build_settings' \
     > "$output_file" 2>&1; then
@@ -384,7 +401,18 @@ test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
     fail "BusyBox shell accepted control-character metadata"
   fi
 
+  PROBE_OUTPUT=$(cat "$output_file")
   assert_output_contains "OCI_TITLE must not contain control characters"
+
+  printf 'OCI_TITLE=Unsafe\000metadata\n' > "$TEST_ROOT/busybox-nul.env"
+  if CONFIG_FILE="$TEST_ROOT/busybox-nul.env" busybox sh -c \
+    '. ./scripts/build-config.sh; load_image_build_settings' \
+    > "$output_file" 2>&1; then
+    fail "BusyBox shell accepted NUL config metadata"
+  fi
+
+  PROBE_OUTPUT=$(cat "$output_file")
+  assert_output_contains "Config file must not contain NUL bytes"
   pass "BusyBox shell uses the portable control-character guard"
 }
 
@@ -661,6 +689,7 @@ test_url_userinfo_config_values_are_rejected
 test_token_like_config_values_are_rejected
 test_control_character_config_values_are_rejected
 test_newline_environment_values_are_rejected
+test_nul_config_values_are_rejected_before_shell_parsing
 test_busybox_shell_accepts_clean_defaults_and_rejects_controls
 test_context_url_userinfo_values_are_rejected
 test_dockerfile_token_like_values_are_rejected

@@ -511,6 +511,20 @@ metadata'
   pass "newline environment metadata is rejected before docker buildx bake"
 }
 
+test_nul_config_metadata_is_rejected_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "nul-config-metadata"
+
+  printf 'PUSH=false\nOCI_DESCRIPTION=Unsafe\000metadata\n' > "$FIXTURE_DIR/config/test.env"
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Config file must not contain NUL bytes"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "NUL config metadata is rejected before shell parsing or docker buildx bake"
+}
+
 test_remote_context_userinfo_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "remote-context-userinfo"
@@ -1153,6 +1167,7 @@ test_unsupported_attestation_controls_are_rejected_before_bake
 test_secret_like_metadata_is_rejected_before_bake
 test_control_character_metadata_is_rejected_before_bake
 test_newline_environment_metadata_is_rejected_before_bake
+test_nul_config_metadata_is_rejected_before_bake
 test_remote_context_userinfo_is_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_latest_base_image_default_is_rejected_before_bake
