@@ -123,7 +123,7 @@ if [ "$#" -eq 5 ] &&
   printf '        "OCI_LICENSES": "%s"\n' "${OCI_LICENSES-}"
   printf '      },\n'
   printf '      "tags": ["%s"],\n' "$stub_image_ref"
-  printf '      "platforms": ['
+  printf '      "platforms": [\n'
   old_ifs=$IFS
   IFS=,
   first_platform=true
@@ -132,13 +132,16 @@ if [ "$#" -eq 5 ] &&
     if [ "$first_platform" = true ]; then
       first_platform=false
     else
-      printf ', '
+      printf ',\n'
     fi
-    printf '"%s"' "$platform"
+    printf '        "%s"' "$platform"
     IFS=,
   done
+  if [ "${IMAGE_NAME-}" = "extra-platform-app" ]; then
+    printf ',\n        "linux/arm64"'
+  fi
   IFS=$old_ifs
-  printf '],\n'
+  printf '\n      ],\n'
   if [ "${SBOM-}" = "true" ] || [ "${PROVENANCE-}" != "false" ] || \
     [ "${IMAGE_NAME-}" = "unexpected-provenance-app" ]; then
     printf '      "attest": [\n'
@@ -303,6 +306,23 @@ EOF
   assert_status 2
   assert_output_contains "Buildx bake plan OCI_TITLE does not match the resolved build setting"
   pass "no-push validation rejects Bake plans with mismatched context or OCI metadata"
+}
+
+test_unexpected_bake_plan_platform_is_rejected() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "unexpected-bake-plan-platform"
+
+  cat > "$FIXTURE_DIR/config/test.env" <<'EOF'
+PUSH=false
+IMAGE_NAME=extra-platform-app
+PLATFORMS=linux/amd64
+EOF
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+
+  assert_status 2
+  assert_output_contains "Buildx bake plan platforms do not exactly match PLATFORMS=linux/amd64"
+  pass "no-push validation rejects Bake plans with unexpected platforms"
 }
 
 test_no_push_bake_plan_requires_cache_only_output() {
@@ -1176,6 +1196,7 @@ install_docker_stub
 test_success_uses_no_push_bake_plan
 test_mismatched_bake_plan_image_tag_is_rejected
 test_mismatched_bake_plan_context_and_metadata_are_rejected
+test_unexpected_bake_plan_platform_is_rejected
 test_no_push_bake_plan_requires_cache_only_output
 test_attestation_controls_are_visible_in_no_push_bake_plan
 test_config_aware_bake_plan_can_be_written_for_review

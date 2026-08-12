@@ -387,6 +387,35 @@ require_bake_plan_identity_and_metadata() {
   done
   IFS=$old_ifs
 
+  expected_platforms=$(printf '%s' "$PLATFORMS" | tr ',' '\n')
+  rendered_platforms=$(awk '
+    /"platforms"[[:space:]]*:[[:space:]]*\[/ {
+      platforms_line = $0
+      sub(/^.*"platforms"[[:space:]]*:[[:space:]]*\[/, "", platforms_line)
+      in_platforms = 1
+    }
+    in_platforms {
+      while (1) {
+        while (match(platforms_line, /"[^"]+"/)) {
+          platform = substr(platforms_line, RSTART + 1, RLENGTH - 2)
+          print platform
+          platforms_line = substr(platforms_line, RSTART + RLENGTH)
+        }
+        if (platforms_line ~ /\]/) {
+          exit
+        }
+        if (getline platforms_line <= 0) {
+          exit
+        }
+      }
+    }
+  ' "$bake_plan_output")
+
+  if [ "$rendered_platforms" != "$expected_platforms" ]; then
+    printf '%s\n' "Buildx bake plan platforms do not exactly match PLATFORMS=$PLATFORMS" >&2
+    exit_bake_plan_check_failed "$bake_plan_output"
+  fi
+
   for metadata_setting in \
     OCI_TITLE \
     OCI_DESCRIPTION \
