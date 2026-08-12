@@ -525,6 +525,26 @@ test_nul_config_metadata_is_rejected_before_bake() {
   pass "NUL config metadata is rejected before shell parsing or docker buildx bake"
 }
 
+test_config_byte_inspection_failure_stops_before_bake() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  make_fixture "byte-inspection-failure"
+
+  printf 'PUSH=false\n' > "$FIXTURE_DIR/config/test.env"
+  cat > "$STUB_DIR/od" <<'SH'
+#!/usr/bin/env sh
+exit 127
+SH
+  chmod +x "$STUB_DIR/od"
+
+  run_validator "$FIXTURE_DIR" "$FIXTURE_DIR/config/test.env"
+  rm "$STUB_DIR/od"
+
+  assert_status 2
+  assert_output_contains "Unable to inspect config file bytes"
+  assert_no_docker_calls "$FIXTURE_DIR/docker.log"
+  pass "failed config byte inspection stops before docker buildx bake"
+}
+
 test_remote_context_userinfo_is_rejected_before_bake() {
   TESTS_RUN=$((TESTS_RUN + 1))
   make_fixture "remote-context-userinfo"
@@ -1168,6 +1188,7 @@ test_secret_like_metadata_is_rejected_before_bake
 test_control_character_metadata_is_rejected_before_bake
 test_newline_environment_metadata_is_rejected_before_bake
 test_nul_config_metadata_is_rejected_before_bake
+test_config_byte_inspection_failure_stops_before_bake
 test_remote_context_userinfo_is_rejected_before_bake
 test_multistage_template_satisfies_oci_gate
 test_latest_base_image_default_is_rejected_before_bake

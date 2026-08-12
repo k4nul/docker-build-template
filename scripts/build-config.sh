@@ -7,7 +7,11 @@ load_image_config() {
     printf '%s\n' "od is required to validate config file bytes" >&2
     exit 2
   fi
-  for image_config_byte in $(LC_ALL=C od -An -t u1 "$image_config_file"); do
+  if ! image_config_bytes=$(LC_ALL=C od -An -t u1 "$image_config_file"); then
+    printf '%s\n' "Unable to inspect config file bytes: $image_config_file" >&2
+    exit 2
+  fi
+  for image_config_byte in $image_config_bytes; do
     if [ "$image_config_byte" = 0 ]; then
       printf '%s\n' "Config file must not contain NUL bytes: $image_config_file" >&2
       exit 2

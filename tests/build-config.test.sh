@@ -89,6 +89,13 @@ print_exported_settings() {
   env | grep -E "$exported_settings_pattern" | sort
 }
 
+print_loaded_settings_with_failing_od() {
+  od() {
+    return 127
+  }
+  print_loaded_settings
+}
+
 test_defaults_are_applied_when_no_config_file_is_forced() {
   TESTS_RUN=$((TESTS_RUN + 1))
   output_file="$TEST_ROOT/defaults.out"
@@ -380,6 +387,21 @@ test_nul_config_values_are_rejected_before_shell_parsing() {
   assert_status 2
   assert_output_contains "Config file must not contain NUL bytes: $config_file"
   pass "NUL config bytes are rejected before the shell can discard them"
+}
+
+test_config_byte_inspection_failure_is_fail_closed() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  config_file="$TEST_ROOT/byte-inspection.env"
+  output_file="$TEST_ROOT/byte-inspection.out"
+
+  printf 'OCI_TITLE=Safe metadata\n' > "$config_file"
+
+  CONFIG_FILE="$config_file" \
+    run_config_probe "$output_file" print_loaded_settings_with_failing_od
+
+  assert_status 2
+  assert_output_contains "Unable to inspect config file bytes: $config_file"
+  pass "failed config byte inspection blocks parsing"
 }
 
 test_busybox_shell_accepts_clean_defaults_and_rejects_controls() {
@@ -690,6 +712,7 @@ test_token_like_config_values_are_rejected
 test_control_character_config_values_are_rejected
 test_newline_environment_values_are_rejected
 test_nul_config_values_are_rejected_before_shell_parsing
+test_config_byte_inspection_failure_is_fail_closed
 test_busybox_shell_accepts_clean_defaults_and_rejects_controls
 test_context_url_userinfo_values_are_rejected
 test_dockerfile_token_like_values_are_rejected
