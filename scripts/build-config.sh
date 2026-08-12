@@ -3,6 +3,21 @@
 load_image_config() {
   image_config_file=$1
 
+  if ! command -v od >/dev/null 2>&1; then
+    printf '%s\n' "od is required to validate config file bytes" >&2
+    exit 2
+  fi
+  if ! image_config_bytes=$(LC_ALL=C od -An -t u1 "$image_config_file"); then
+    printf '%s\n' "Unable to inspect config file bytes: $image_config_file" >&2
+    exit 2
+  fi
+  for image_config_byte in $image_config_bytes; do
+    if [ "$image_config_byte" = 0 ]; then
+      printf '%s\n' "Config file must not contain NUL bytes: $image_config_file" >&2
+      exit 2
+    fi
+  done
+
   while IFS= read -r image_config_line || [ -n "$image_config_line" ]; do
     case "$image_config_line" in
       ''|'#'*)
@@ -150,9 +165,24 @@ contains_url_userinfo() {
   return 1
 }
 
+contains_control_character() (
+  LC_ALL=C
+  export LC_ALL
+
+  case $1 in
+    *[[:cntrl:]]*) return 0 ;;
+    *) return 1 ;;
+  esac
+)
+
 require_public_build_value() {
   public_setting_name=$1
   public_setting_value=$2
+
+  if contains_control_character "$public_setting_value"; then
+    printf '%s\n' "$public_setting_name must not contain control characters" >&2
+    exit 2
+  fi
 
   if contains_url_userinfo "$public_setting_value"; then
     printf '%s\n' "$public_setting_name must not include URL userinfo or credentials" >&2
